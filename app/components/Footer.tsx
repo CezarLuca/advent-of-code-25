@@ -9,18 +9,18 @@ export default function Footer() {
         >
             <p>
                 Contact:{" "}
-                <a href="mailto:your-email@example.com">
-                    your-email@example.com
+                <a href="mailto:cezar.luca96@gmail.com">
+                    cezar.luca96@gmail.com
                 </a>
             </p>
             <p>
                 GitHub:{" "}
                 <a
-                    href="https://github.com/your-github-username"
+                    href="https://github.com/CezarLuca"
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    your-github-username
+                    Cezar Luca
                 </a>
             </p>
         </footer>
