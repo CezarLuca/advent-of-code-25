@@ -1,18 +1,19 @@
-"use client";
-
-import { useState } from "react";
 import ProblemToggle from "./ProblemToggle";
 import Collapsible from "./ui/Collapsible";
 
 interface DaySectionProps {
     day: number;
+    selectedProblem: 1 | 2;
+    onProblemChange: (day: number, problem: 1 | 2) => void;
 }
 
-export default function DaySection({ day }: DaySectionProps) {
-    const [selectedProblem, setSelectedProblem] = useState(1);
-
+export default function DaySection({
+    day,
+    selectedProblem,
+    onProblemChange,
+}: DaySectionProps) {
     const handleProblemToggle = (problem: number) => {
-        setSelectedProblem(problem);
+        onProblemChange(day, problem as 1 | 2);
     };
 
     return (
