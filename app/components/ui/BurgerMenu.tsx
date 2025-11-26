@@ -40,56 +40,69 @@ export default function BurgerMenu({ isOpen, onClose }: BurgerMenuProps) {
                 </header>
 
                 {openDay && (
-                    <div className="mb-4 p-2 rounded bg-blue-50 dark:bg-blue-900/30 text-sm">
-                        Currently viewing: <strong>Day {openDay}</strong> - Part{" "}
-                        {selectedProblems[openDay]}
+                    <div className="mb-4 p-3 rounded-md border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800 text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                            Currently viewing:
+                        </span>
+                        <p className="font-semibold text-gray-900 dark:text-gray-50">
+                            Day {openDay} — Part {selectedProblems[openDay]}
+                        </p>
                     </div>
                 )}
 
-                <div className="space-y-3 max-h-[70vh] overflow-y-auto">
-                    {days.map((day) => (
-                        <div
-                            key={day}
-                            className={`rounded border p-3 ${
-                                openDay === day
-                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                    : "border-gray-200 dark:border-gray-700"
-                            }`}
-                        >
-                            <p className="text-sm font-medium mb-2">
-                                Day {day}
-                                {openDay === day && (
-                                    <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                                        (open)
-                                    </span>
-                                )}
-                            </p>
-                            <div className="flex gap-2">
-                                <button
-                                    className={`flex-1 rounded py-1 text-sm ${
-                                        openDay === day &&
-                                        selectedProblems[day] === 1
-                                            ? "bg-blue-700 text-white"
-                                            : "bg-blue-600 text-white hover:bg-blue-500"
-                                    }`}
-                                    onClick={() => handleSelect(day, 1)}
-                                >
-                                    Part 1
-                                </button>
-                                <button
-                                    className={`flex-1 rounded border py-1 text-sm ${
-                                        openDay === day &&
-                                        selectedProblems[day] === 2
-                                            ? "bg-blue-600 text-white border-blue-600"
-                                            : "border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
-                                    }`}
-                                    onClick={() => handleSelect(day, 2)}
-                                >
-                                    Part 2
-                                </button>
+                <div
+                    className="space-y-2 max-h-[70vh] overflow-y-auto pr-2
+                        [&::-webkit-scrollbar]:w-1.5
+                        [&::-webkit-scrollbar-track]:bg-gray-200
+                        [&::-webkit-scrollbar-track]:rounded-full
+                        [&::-webkit-scrollbar-thumb]:bg-gray-400
+                        [&::-webkit-scrollbar-thumb]:rounded-full
+                        [&::-webkit-scrollbar-thumb]:hover:bg-gray-500
+                        dark:[&::-webkit-scrollbar-track]:bg-gray-800
+                        dark:[&::-webkit-scrollbar-thumb]:bg-gray-600
+                        dark:[&::-webkit-scrollbar-thumb]:hover:bg-gray-500"
+                >
+                    {days.map((day) => {
+                        const isActiveDay = openDay === day;
+                        const activeProblem = selectedProblems[day];
+
+                        return (
+                            <div
+                                key={day}
+                                className={`rounded-md border p-3 transition-colors ${
+                                    isActiveDay
+                                        ? "border-blue-500 bg-gray-100 dark:bg-gray-800"
+                                        : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                                }`}
+                            >
+                                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+                                    Day {day}
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                                            isActiveDay && activeProblem === 1
+                                                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                        }`}
+                                        onClick={() => handleSelect(day, 1)}
+                                    >
+                                        Part 1
+                                    </button>
+                                    <button
+                                        className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                                            isActiveDay && activeProblem === 2
+                                                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                        }`}
+                                        onClick={() => handleSelect(day, 2)}
+                                    >
+                                        Part 2
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
