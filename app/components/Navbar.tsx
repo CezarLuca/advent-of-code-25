@@ -3,11 +3,7 @@
 import { useState } from "react";
 import BurgerMenu from "./ui/BurgerMenu";
 
-interface NavbarProps {
-    onNavigate: (day: number, problem: 1 | 2) => void;
-}
-
-export default function Navbar({ onNavigate }: NavbarProps) {
+export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -22,11 +18,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
                 ☰
             </button>
 
-            <BurgerMenu
-                isOpen={isOpen}
-                onClose={() => setIsOpen(false)}
-                onNavigate={onNavigate}
-            />
+            <BurgerMenu isOpen={isOpen} onClose={() => setIsOpen(false)} />
         </nav>
     );
 }

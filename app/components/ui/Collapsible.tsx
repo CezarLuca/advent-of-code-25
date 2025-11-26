@@ -1,22 +1,21 @@
 "use client";
 
-import { useState } from "react";
-
 interface CollapsibleProps {
     title: string;
     children: React.ReactNode;
+    isOpen: boolean;
+    onToggle: () => void;
 }
 
-export default function Collapsible({ title, children }: CollapsibleProps) {
-    const [isOpen, setIsOpen] = useState(false);
-
-    const toggleCollapse = () => {
-        setIsOpen(!isOpen);
-    };
-
+export default function Collapsible({
+    title,
+    children,
+    isOpen,
+    onToggle,
+}: CollapsibleProps) {
     return (
         <div className="collapsible">
-            <button onClick={toggleCollapse} className="collapsible-toggle">
+            <button onClick={onToggle} className="collapsible-toggle">
                 {title}
             </button>
             {isOpen && <div className="collapsible-content">{children}</div>}
