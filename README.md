@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Advent of Code 2025 Challenge App
+
+This project is an interactive web application designed to help users solve the Advent of Code challenges for the year 2025. The application provides a structured layout for each day's challenge, allowing users to input parameters, view intermediary steps, and see the final solution.
+
+## Project Structure
+
+The project is organized as follows:
+
+```
+advent-of-code-25
+├── app
+│   ├── components
+│   │   ├── ui
+│   │   │   ├── BurgerMenu.tsx
+│   │   │   └── Collapsible.tsx
+│   │   ├── solutions
+│   │   │   ├── day1
+|   |   |   |   ├── Part1.tsx
+|   |   |   |   └── Part2.tsx
+│   │   │   ├── day2
+|   |   |   |   ├── Part1.tsx
+|   |   |   |   └── Part2.tsx
+│   │   │   └── ...
+│   │   ├── DaySection.tsx
+│   │   ├── DayTemplate.tsx
+│   │   ├── Footer.tsx
+│   │   ├── Navbar.tsx
+│   │   └── ProblemToggle.tsx
+│   ├── context
+│   │   └── DayContext.tsx
+│   ├── layout.tsx
+│   └── page.tsx
+├── package.json
+├── tsconfig.json
+├── tailwind.config.ts
+└── README.md
+```
+
+## Features
+
+-   **Collapsible Sections**: Each day's challenge is organized into collapsible sections for better navigation.
+-   **Dynamic Problem Switching**: Users can switch between different problems for each day using the `ProblemToggle` component.
+-   **Input Fields**: Each solution component includes input fields for users to enter initial parameters.
+-   **Intermediary Steps Display**: The application displays intermediary steps to help users understand the solution process.
+-   **Final Solution Display**: The final solution is presented clearly at the end of each day's section.
 
 ## Getting Started
 
-First, run the development server:
+To get started with the project, follow these steps:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Clone the Repository**:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+    ```bash
+    git clone <repository-url>
+    cd advent-of-code-25
+    ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. **Install Dependencies**:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+    ```bash
+    npm install
+    ```
 
-## Learn More
+3. **Run the Application**:
 
-To learn more about Next.js, take a look at the following resources:
+    ```bash
+    npm run dev
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Open in Browser**:
+   Navigate to `http://localhost:3000` in your web browser to view the application.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
+Contributions are welcome! If you have suggestions for improvements or new features, feel free to open an issue or submit a pull request.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License. See the LICENSE file for more details.
