@@ -79,10 +79,6 @@ export default function Part2() {
                         timesCrossed =
                             1 +
                             Math.floor((stepsAfterFirstZero - 1) / arrayLength);
-
-                        if (currentIndex === 0) {
-                            timesCrossed--;
-                        }
                     }
                 }
 
