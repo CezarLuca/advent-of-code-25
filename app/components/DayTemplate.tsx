@@ -27,15 +27,19 @@ export default function DayTemplate({
             {SolutionComponent ? (
                 <Suspense
                     fallback={
-                        <div className="text-gray-500">Loading solution...</div>
+                        <div className="text-green-600 flex items-center gap-2">
+                            <span className="animate-pulse">❄️</span>
+                            Loading solution...
+                        </div>
                     }
                 >
                     <SolutionComponent />
                 </Suspense>
             ) : (
-                <div className="text-gray-500 italic">
+                <div className="text-green-600 italic flex items-center gap-2">
+                    <span>🎁</span>
                     Solution for Day {day} Part {selectedProblem} not yet
-                    implemented.
+                    implemented — coming soon!
                 </div>
             )}
         </div>

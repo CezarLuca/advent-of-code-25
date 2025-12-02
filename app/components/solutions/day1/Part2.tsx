@@ -137,27 +137,27 @@ export default function Part2() {
                 <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Paste your puzzle input here"
-                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800 min-h-[100px]"
+                    placeholder="🎅 Paste your puzzle input here..."
+                    className="flex-1 border-2 border-green-300 rounded-lg p-3 bg-white text-green-900 placeholder-green-600/40 min-h-[100px] focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
                 />
                 <button
                     onClick={solve}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors self-start"
+                    className="px-6 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors self-start font-medium shadow-md"
                 >
                     Solve
                 </button>
             </div>
-            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded">
-                <h3 className="font-bold mb-2">
-                    Steps ({steps.length} total):
+            <div className="bg-green-50 border-2 border-green-200 p-4 rounded-lg">
+                <h3 className="font-bold mb-2 text-green-800">
+                    ❄️ Steps ({steps.length} total):
                 </h3>
                 <div
                     ref={containerRef}
-                    className="max-h-64 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded"
+                    className="max-h-64 overflow-y-auto border-2 border-green-300 rounded-lg bg-white"
                 >
                     <div style={{ height: totalHeight, position: "relative" }}>
                         <ul
-                            className="list-disc pl-5 text-sm absolute w-full"
+                            className="list-disc pl-5 text-sm absolute w-full text-green-800"
                             style={{ top: visibleRange.start * ITEM_HEIGHT }}
                         >
                             {visibleSteps.map((step, i) => (
@@ -173,9 +173,11 @@ export default function Part2() {
                     </div>
                 </div>
             </div>
-            <div className="bg-green-100 dark:bg-green-900 p-4 rounded">
-                <h3 className="font-bold">Solution:</h3>
-                <p className="font-mono text-lg">{solution ?? "—"}</p>
+            <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-lg">
+                <h3 className="font-bold text-yellow-800">⭐ Solution:</h3>
+                <p className="font-mono text-lg text-yellow-900">
+                    {solution ?? "—"}
+                </p>
             </div>
         </div>
     );
