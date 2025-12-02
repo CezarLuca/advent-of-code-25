@@ -10,9 +10,9 @@ function HomeContent() {
         useDayContext();
 
     return (
-        <div className="min-h-screen bg-linear-to-b from-slate-100 to-blue-50 text-gray-900 dark:from-slate-950 dark:to-green-950 dark:text-gray-50">
+        <div className="min-h-screen bg-gradient-to-b from-slate-100 to-blue-50 text-gray-900 dark:from-slate-950 dark:to-green-950 dark:text-gray-50">
             <Navbar />
-            <main className="mx-auto max-w-4xl space-y-4 px-4 py-8">
+            <main className="mx-auto max-w-4xl space-y-4 px-4 py-8 pt-24">
                 {Array.from({ length: TOTAL_DAYS }, (_, index) => {
                     const day = index + 1;
                     return (
