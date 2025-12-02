@@ -68,8 +68,6 @@ export default function Part2() {
                     timesCrossed = Math.floor(
                         (indexMovement - 1) / arrayLength
                     );
-                    if (currentIndex === 0 && indexMovement > 0) {
-                    }
                 } else {
                     const virtualPosition = previousIndex - indexMovement;
 

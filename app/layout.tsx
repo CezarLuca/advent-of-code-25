@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Advent of Code 2025 Solutions",
+    title: "Solving AoC 2025",
     description: "Solutions for Advent of Code 2025",
 };
 
