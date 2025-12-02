@@ -17,12 +17,21 @@ export default function Collapsible({
         <div className="collapsible">
             <button
                 onClick={onToggle}
-                className="w-full p-4 text-left border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 hover:cursor-pointer transition-colors"
+                className={`w-full p-4 text-left rounded-lg shadow-sm transition-all hover:cursor-pointer ${
+                    isOpen
+                        ? "border-2 border-yellow-500 bg-green-50 text-green-900 dark:bg-green-950 dark:border-yellow-600 dark:text-green-50"
+                        : "collapsible-closed text-green-600 hover:text-green-700 dark:text-green-50 dark:hover:text-green-100"
+                }`}
             >
-                {title}
+                <span className="flex items-center gap-2">
+                    <span className="text-yellow-500">⭐</span>
+                    {title}
+                </span>
             </button>
             {isOpen && (
-                <div className="collapsible-content mt-2">{children}</div>
+                <div className="collapsible-content mt-2 pl-4 border-l-2 border-green-500 dark:border-green-700">
+                    {children}
+                </div>
             )}
         </div>
     );

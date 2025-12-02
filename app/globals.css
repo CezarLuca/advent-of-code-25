@@ -29,3 +29,100 @@ body {
     color: var(--foreground);
     font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Candy cane striped border effect */
+.candy-cane-border {
+    position: relative;
+    border: 3px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+        repeating-linear-gradient(
+                45deg,
+                #dc2626 0px,
+                #dc2626 10px,
+                #ffffff 10px,
+                #ffffff 20px
+            )
+            border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+    .candy-cane-border {
+        background: linear-gradient(#0f172a, #0f172a) padding-box,
+            repeating-linear-gradient(
+                    45deg,
+                    #dc2626 0px,
+                    #dc2626 10px,
+                    #ffffff 10px,
+                    #ffffff 20px
+                )
+                border-box;
+    }
+}
+
+/* Festive hover background */
+.festive-hover-bg {
+    background: linear-gradient(
+        135deg,
+        rgba(220, 38, 38, 0.08) 0%,
+        rgba(255, 255, 255, 0.95) 50%,
+        rgba(22, 101, 52, 0.08) 100%
+    );
+}
+
+@media (prefers-color-scheme: dark) {
+    .festive-hover-bg {
+        background: linear-gradient(
+            135deg,
+            rgba(220, 38, 38, 0.15) 0%,
+            rgba(15, 23, 42, 0.95) 50%,
+            rgba(22, 101, 52, 0.15) 100%
+        );
+    }
+}
+
+/* Collapsible closed state with candy cane hover */
+.collapsible-closed {
+    border: 2px solid #86efac; /* green-300 */
+    background: #f8fafc; /* slate-50 */
+}
+
+@media (prefers-color-scheme: dark) {
+    .collapsible-closed {
+        border-color: #166534; /* green-800 */
+        background: #052e16;
+    }
+}
+
+.collapsible-closed:hover {
+    border: 3px solid transparent;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffffff 50%, #f0fdf4 100%)
+            padding-box,
+        repeating-linear-gradient(
+                45deg,
+                #dc2626 0px,
+                #dc2626 8px,
+                #ffffff 8px,
+                #ffffff 16px
+            )
+            border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+    .collapsible-closed:hover {
+        background: linear-gradient(
+                    135deg,
+                    #1a0a0a 0%,
+                    #0f172a 50%,
+                    #0a1a0f 100%
+                )
+                padding-box,
+            repeating-linear-gradient(
+                    45deg,
+                    #dc2626 0px,
+                    #dc2626 8px,
+                    #ffffff 8px,
+                    #ffffff 16px
+                )
+                border-box;
+    }
+}
