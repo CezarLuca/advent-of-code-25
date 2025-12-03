@@ -11,7 +11,33 @@ export default function Part1() {
     const ITEM_HEIGHT = 24;
     const BUFFER = 20;
 
-    const solve = () => {};
+    const solve = () => {
+        const newSteps: string[] = [];
+
+        const pairs = input
+            .split(",")
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+        newSteps.push(
+            `📝 Found ${pairs.length} number pairs: ${pairs.join(", ")}`
+        );
+
+        const validPairs = pairs.filter((pair) => {
+            const [start, end] = pair.split("-").map((n) => n.trim());
+            const hasLeadingZero =
+                (start.length > 1 && start.startsWith("0")) ||
+                (end.length > 1 && end.startsWith("0"));
+            if (hasLeadingZero) {
+                newSteps.push(
+                    `❌ Discarding pair "${pair}" - contains leading zeros`
+                );
+            }
+            return !hasLeadingZero;
+        });
+        newSteps.push(
+            `✅ Valid pairs after filtering: ${validPairs.join(", ")}`
+        );
+    };
 
     const handleScroll = useCallback(() => {
         if (!containerRef.current) return;
