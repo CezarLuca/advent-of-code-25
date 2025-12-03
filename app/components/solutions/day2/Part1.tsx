@@ -38,20 +38,20 @@ export default function Part1() {
             `✅ Valid pairs after filtering: ${validPairs.join(", ")}`
         );
 
-        const rangeArrays: number[][] = validPairs.map((pair) => {
+        const rangeArrays: string[][] = validPairs.map((pair) => {
             const [startStr, endStr] = pair.split("-").map((n) => n.trim());
             const start = parseInt(startStr, 10);
             const end = parseInt(endStr, 10);
-            const range: number[] = [];
+            const range: string[] = [];
             for (let i = start; i <= end; i++) {
-                range.push(i);
+                range.push(String(i));
             }
             newSteps.push(`🔢 Range "${pair}" → [${range.join(", ")}]`);
             return range;
         });
 
-        const evenCharArrays: number[][] = rangeArrays.map((arr, idx) => {
-            const filtered = arr.filter((n) => String(n).length % 2 === 0);
+        const evenCharArrays: string[][] = rangeArrays.map((arr, idx) => {
+            const filtered = arr.filter((s) => s.length % 2 === 0);
             newSteps.push(
                 `📏 Array ${
                     idx + 1
@@ -60,12 +60,11 @@ export default function Part1() {
             return filtered;
         });
 
-        const palindromicArrays: number[][] = evenCharArrays.map((arr, idx) => {
-            const filtered = arr.filter((n) => {
-                const str = String(n);
-                const half = str.length / 2;
-                const firstHalf = str.substring(0, half);
-                const secondHalf = str.substring(half);
+        const palindromicArrays: string[][] = evenCharArrays.map((arr, idx) => {
+            const filtered = arr.filter((s) => {
+                const half = s.length / 2;
+                const firstHalf = s.substring(0, half);
+                const secondHalf = s.substring(half);
                 return firstHalf === secondHalf;
             });
             newSteps.push(
@@ -77,7 +76,7 @@ export default function Part1() {
         });
 
         const totalSum = palindromicArrays.reduce((sum, arr) => {
-            return sum + arr.reduce((s, n) => s + n, 0);
+            return sum + arr.reduce((s, str) => s + parseInt(str, 10), 0);
         }, 0);
 
         newSteps.push(`🎯 Final arrays: ${JSON.stringify(palindromicArrays)}`);

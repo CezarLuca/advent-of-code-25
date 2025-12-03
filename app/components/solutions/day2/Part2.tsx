@@ -67,7 +67,9 @@ export default function Part2() {
         const matchingNumInArrays: number[][] = rangeArrays.map((arr, idx) => {
             const filtered = arr.filter((n) => isRepeatingPattern(n));
             newSteps.push(
-                `🔄 Array ${idx + 1}: Invalid IDs → [${filtered.join(", ")}]`
+                `🔄 Array ${idx + 1}: Matching numbers → [${filtered.join(
+                    ", "
+                )}]`
             );
             return filtered;
         });
@@ -79,7 +81,7 @@ export default function Part2() {
         newSteps.push(
             `🎯 Final arrays: ${JSON.stringify(matchingNumInArrays)}`
         );
-        newSteps.push(`⭐ Sum of all invalid IDs: ${totalSum}`);
+        newSteps.push(`⭐ Sum of all matching numbers: ${totalSum}`);
 
         setSteps(newSteps);
         setSolution(totalSum.toString());
