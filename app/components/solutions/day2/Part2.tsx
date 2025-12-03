@@ -14,6 +14,36 @@ export default function Part2() {
     const solve = () => {
         const newSteps: string[] = [];
 
+        const isRepeatingPattern = (n: number): boolean => {
+            const str = String(n);
+            if (str.length < 2) return false;
+
+            for (
+                let patternLen = 1;
+                patternLen <= str.length / 2;
+                patternLen++
+            ) {
+                if (str.length % patternLen !== 0) continue;
+
+                const repeatCount = str.length / patternLen;
+                if (repeatCount < 2) continue;
+
+                const pattern = str.substring(0, patternLen);
+                let isValid = true;
+
+                for (let i = patternLen; i < str.length; i += patternLen) {
+                    if (str.substring(i, i + patternLen) !== pattern) {
+                        isValid = false;
+                        break;
+                    }
+                }
+
+                if (isValid) return true;
+            }
+
+            return false;
+        };
+
         const pairs = input
             .split(",")
             .map((p) => p.trim())
@@ -33,6 +63,26 @@ export default function Part2() {
             newSteps.push(`🔢 Range "${pair}" → [${range.join(", ")}]`);
             return range;
         });
+
+        const matchingNumInArrays: number[][] = rangeArrays.map((arr, idx) => {
+            const filtered = arr.filter((n) => isRepeatingPattern(n));
+            newSteps.push(
+                `🔄 Array ${idx + 1}: Invalid IDs → [${filtered.join(", ")}]`
+            );
+            return filtered;
+        });
+
+        const totalSum = matchingNumInArrays.reduce((sum, arr) => {
+            return sum + arr.reduce((s, n) => s + n, 0);
+        }, 0);
+
+        newSteps.push(
+            `🎯 Final arrays: ${JSON.stringify(matchingNumInArrays)}`
+        );
+        newSteps.push(`⭐ Sum of all invalid IDs: ${totalSum}`);
+
+        setSteps(newSteps);
+        setSolution(totalSum.toString());
     };
 
     const handleScroll = useCallback(() => {
