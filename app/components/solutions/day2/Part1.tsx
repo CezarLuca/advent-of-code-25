@@ -1,19 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 export default function Part1() {
     const [input, setInput] = useState("");
     const [steps, setSteps] = useState<string[]>([]);
     const [solution, setSolution] = useState<string | null>(null);
+    const [visibleRange, setVisibleRange] = useState({ start: 0, end: 100 });
+    const containerRef = useRef<HTMLDivElement>(null);
+    const ITEM_HEIGHT = 24;
+    const BUFFER = 20;
 
-    const solve = () => {
-        // TODO: Implement Day 2 Part 1 logic
-        const newSteps: string[] = [];
-        newSteps.push("Parsing input...");
-        setSteps(newSteps);
-        setSolution("Result goes here");
-    };
+    const solve = () => {};
+
+    const handleScroll = useCallback(() => {
+        if (!containerRef.current) return;
+
+        const scrollTop = containerRef.current.scrollTop;
+        const containerHeight = containerRef.current.clientHeight;
+
+        const start = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
+        const end = Math.min(
+            steps.length,
+            Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER
+        );
+
+        setVisibleRange({ start, end });
+    }, [steps.length]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (container) {
+            container.addEventListener("scroll", handleScroll);
+            return () => container.removeEventListener("scroll", handleScroll);
+        }
+    }, [handleScroll]);
+
+    const totalHeight = steps.length * ITEM_HEIGHT;
+    const visibleSteps = steps.slice(visibleRange.start, visibleRange.end);
 
     return (
         <div className="flex flex-col gap-4">
@@ -21,27 +45,47 @@ export default function Part1() {
                 <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Paste your puzzle input here"
-                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800 min-h-[100px]"
+                    placeholder="🎅 Paste your puzzle input here..."
+                    className="flex-1 border-2 border-green-300 rounded-lg p-3 bg-white text-green-900 placeholder-green-600/40 min-h-[100px] focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
                 />
                 <button
                     onClick={solve}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors self-start"
+                    className="px-6 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors self-start font-medium shadow-md"
                 >
                     Solve
                 </button>
             </div>
-            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded">
-                <h3 className="font-bold mb-2">Steps:</h3>
-                <ul className="list-disc pl-5 text-sm">
-                    {steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                    ))}
-                </ul>
+            <div className="bg-green-50 border-2 border-green-200 p-4 rounded-lg">
+                <h3 className="font-bold mb-2 text-green-800">
+                    ❄️ Steps ({steps.length} total):
+                </h3>
+                <div
+                    ref={containerRef}
+                    className="max-h-64 overflow-y-auto border-2 border-green-300 rounded-lg bg-white"
+                >
+                    <div style={{ height: totalHeight, position: "relative" }}>
+                        <ul
+                            className="list-disc pl-5 text-sm absolute w-full text-green-800"
+                            style={{ top: visibleRange.start * ITEM_HEIGHT }}
+                        >
+                            {visibleSteps.map((step, i) => (
+                                <li
+                                    key={visibleRange.start + i}
+                                    style={{ height: ITEM_HEIGHT }}
+                                    className="truncate pr-2"
+                                >
+                                    {step}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
             </div>
-            <div className="bg-green-100 dark:bg-green-900 p-4 rounded">
-                <h3 className="font-bold">Solution:</h3>
-                <p className="font-mono text-lg">{solution ?? "—"}</p>
+            <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-lg">
+                <h3 className="font-bold text-yellow-800">⭐ Solution:</h3>
+                <p className="font-mono text-lg text-yellow-900">
+                    {solution ?? "—"}
+                </p>
             </div>
         </div>
     );
