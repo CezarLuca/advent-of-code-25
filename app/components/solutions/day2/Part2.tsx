@@ -14,8 +14,7 @@ export default function Part2() {
     const solve = () => {
         const newSteps: string[] = [];
 
-        const isRepeatingPattern = (n: number): boolean => {
-            const str = String(n);
+        const isRepeatingPattern = (str: string): boolean => {
             if (str.length < 2) return false;
 
             for (
@@ -52,20 +51,20 @@ export default function Part2() {
             `📝 Found ${pairs.length} number pairs: ${pairs.join(", ")}`
         );
 
-        const rangeArrays: number[][] = pairs.map((pair) => {
+        const rangeArrays: string[][] = pairs.map((pair) => {
             const [startStr, endStr] = pair.split("-").map((n) => n.trim());
             const start = parseInt(startStr, 10);
             const end = parseInt(endStr, 10);
-            const range: number[] = [];
+            const range: string[] = [];
             for (let i = start; i <= end; i++) {
-                range.push(i);
+                range.push(String(i));
             }
             newSteps.push(`🔢 Range "${pair}" → [${range.join(", ")}]`);
             return range;
         });
 
-        const matchingNumInArrays: number[][] = rangeArrays.map((arr, idx) => {
-            const filtered = arr.filter((n) => isRepeatingPattern(n));
+        const matchingNumInArrays: string[][] = rangeArrays.map((arr, idx) => {
+            const filtered = arr.filter((s) => isRepeatingPattern(s));
             newSteps.push(
                 `🔄 Array ${idx + 1}: Matching numbers → [${filtered.join(
                     ", "
@@ -75,7 +74,7 @@ export default function Part2() {
         });
 
         const totalSum = matchingNumInArrays.reduce((sum, arr) => {
-            return sum + arr.reduce((s, n) => s + n, 0);
+            return sum + arr.reduce((s, str) => s + parseInt(str, 10), 0);
         }, 0);
 
         newSteps.push(
