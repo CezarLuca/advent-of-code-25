@@ -37,6 +37,54 @@ export default function Part1() {
         newSteps.push(
             `✅ Valid pairs after filtering: ${validPairs.join(", ")}`
         );
+
+        const rangeArrays: number[][] = validPairs.map((pair) => {
+            const [startStr, endStr] = pair.split("-").map((n) => n.trim());
+            const start = parseInt(startStr, 10);
+            const end = parseInt(endStr, 10);
+            const range: number[] = [];
+            for (let i = start; i <= end; i++) {
+                range.push(i);
+            }
+            newSteps.push(`🔢 Range "${pair}" → [${range.join(", ")}]`);
+            return range;
+        });
+
+        const evenCharArrays: number[][] = rangeArrays.map((arr, idx) => {
+            const filtered = arr.filter((n) => String(n).length % 2 === 0);
+            newSteps.push(
+                `📏 Array ${
+                    idx + 1
+                }: Keeping even-length numbers → [${filtered.join(", ")}]`
+            );
+            return filtered;
+        });
+
+        const palindromicArrays: number[][] = evenCharArrays.map((arr, idx) => {
+            const filtered = arr.filter((n) => {
+                const str = String(n);
+                const half = str.length / 2;
+                const firstHalf = str.substring(0, half);
+                const secondHalf = str.substring(half);
+                return firstHalf === secondHalf;
+            });
+            newSteps.push(
+                `🔄 Array ${
+                    idx + 1
+                }: Keeping matching-half numbers → [${filtered.join(", ")}]`
+            );
+            return filtered;
+        });
+
+        const totalSum = palindromicArrays.reduce((sum, arr) => {
+            return sum + arr.reduce((s, n) => s + n, 0);
+        }, 0);
+
+        newSteps.push(`🎯 Final arrays: ${JSON.stringify(palindromicArrays)}`);
+        newSteps.push(`⭐ Sum of all remaining numbers: ${totalSum}`);
+
+        setSteps(newSteps);
+        setSolution(totalSum.toString());
     };
 
     const handleScroll = useCallback(() => {
