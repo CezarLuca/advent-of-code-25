@@ -11,7 +11,29 @@ export default function Part2() {
     const ITEM_HEIGHT = 24;
     const BUFFER = 20;
 
-    const solve = () => {};
+    const solve = () => {
+        const newSteps: string[] = [];
+
+        const pairs = input
+            .split(",")
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+        newSteps.push(
+            `📝 Found ${pairs.length} number pairs: ${pairs.join(", ")}`
+        );
+
+        const rangeArrays: number[][] = pairs.map((pair) => {
+            const [startStr, endStr] = pair.split("-").map((n) => n.trim());
+            const start = parseInt(startStr, 10);
+            const end = parseInt(endStr, 10);
+            const range: number[] = [];
+            for (let i = start; i <= end; i++) {
+                range.push(i);
+            }
+            newSteps.push(`🔢 Range "${pair}" → [${range.join(", ")}]`);
+            return range;
+        });
+    };
 
     const handleScroll = useCallback(() => {
         if (!containerRef.current) return;
