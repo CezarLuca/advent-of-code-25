@@ -10,8 +10,71 @@ export default function Part2() {
     const containerRef = useRef<HTMLDivElement>(null);
     const ITEM_HEIGHT = 24;
     const BUFFER = 20;
+    const NUM_DIGITS = 12;
 
-    const solve = () => {};
+    const solve = () => {
+        const newSteps: string[] = [];
+
+        const rows = input.trim().split("\n");
+        newSteps.push(`Parsed ${rows.length} rows from input`);
+
+        const digitArrays = rows.map((row, idx) => {
+            const digits = row.split("").map((char) => parseInt(char, 10));
+            newSteps.push(`Row ${idx + 1}: ${digits.length} digits`);
+            return digits;
+        });
+
+        const twelveDigitNumbers: bigint[] = [];
+
+        for (let rowIdx = 0; rowIdx < digitArrays.length; rowIdx++) {
+            const digits = digitArrays[rowIdx];
+            const selectedDigits: number[] = [];
+            let searchStartIndex = 0;
+
+            for (
+                let digitPosition = 0;
+                digitPosition < NUM_DIGITS;
+                digitPosition++
+            ) {
+                const digitsNeeded = NUM_DIGITS - digitPosition;
+                const maxSearchIndex = digits.length - digitsNeeded;
+
+                let maxValue = digits[searchStartIndex];
+                let maxIndex = searchStartIndex;
+
+                for (let i = searchStartIndex + 1; i <= maxSearchIndex; i++) {
+                    if (digits[i] > maxValue) {
+                        maxValue = digits[i];
+                        maxIndex = i;
+                    }
+                    if (maxValue === 9) break;
+                }
+
+                selectedDigits.push(maxValue);
+                newSteps.push(
+                    `Row ${rowIdx + 1}, Digit ${
+                        digitPosition + 1
+                    }: Found ${maxValue} at index ${maxIndex}`
+                );
+
+                searchStartIndex = maxIndex + 1;
+            }
+
+            const twelveDigitNum = BigInt(selectedDigits.join(""));
+            twelveDigitNumbers.push(twelveDigitNum);
+            newSteps.push(
+                `Row ${rowIdx + 1}: Formed number = ${twelveDigitNum}`
+            );
+        }
+
+        const total = twelveDigitNumbers.reduce((sum, num) => sum + num, 0n);
+        newSteps.push(`---`);
+        newSteps.push(`12-digit numbers: [${twelveDigitNumbers.join(", ")}]`);
+        newSteps.push(`Final sum: ${total}`);
+
+        setSteps(newSteps);
+        setSolution(total.toString());
+    };
 
     const handleScroll = useCallback(() => {
         if (!containerRef.current) return;

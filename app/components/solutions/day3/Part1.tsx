@@ -62,11 +62,7 @@ export default function Part1() {
 
             const twoDigitNum = firstMaxValue * 10 + secondMaxValue;
             twoDigitNumbers.push(twoDigitNum);
-            newSteps.push(
-                `Row ${
-                    rowIdx + 1
-                }: Formed number = ${firstMaxValue}${secondMaxValue} = ${twoDigitNum}`
-            );
+            newSteps.push(`Row ${rowIdx + 1}: Formed number = ${twoDigitNum}`);
         }
 
         const total = twoDigitNumbers.reduce((sum, num) => sum + num, 0);
