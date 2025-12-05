@@ -15,6 +15,8 @@ const solutionComponents: Record<
     "2-2": lazy(() => import("./solutions/day2/Part2")),
     "3-1": lazy(() => import("./solutions/day3/Part1")),
     "3-2": lazy(() => import("./solutions/day3/Part2")),
+    "4-1": lazy(() => import("./solutions/day4/Part1")),
+    "4-2": lazy(() => import("./solutions/day4/Part2")),
 };
 
 export default function DayTemplate({

@@ -11,7 +11,75 @@ export default function Part1() {
     const ITEM_HEIGHT = 24;
     const BUFFER = 20;
 
-    const solve = () => {};
+    const solve = () => {
+        const newSteps: string[] = [];
+
+        const lines = input.trim().split("\n");
+        const grid = lines.map((line) => line.split(""));
+        const rows = grid.length;
+        const cols = grid[0]?.length || 0;
+
+        newSteps.push(`Parsed grid: ${rows} rows × ${cols} columns`);
+
+        const directions = [
+            [-1, -1], // top-left
+            [-1, 0], // top
+            [-1, 1], // top - right
+            [0, -1], // left
+            [0, 1], // right
+            [1, -1], // bottom-left
+            [1, 0], // bottom
+            [1, 1], //bottom-right
+        ];
+
+        const countAtNeighbors = (row: number, col: number): number => {
+            let count = 0;
+            for (const [dr, dc] of directions) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+                if (
+                    newRow >= 0 &&
+                    newRow < rows &&
+                    newCol >= 0 &&
+                    newCol < cols
+                ) {
+                    if (grid[newRow][newCol] === "@") {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        };
+
+        let totalCount = 0;
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                if (grid[row][col] === "@") {
+                    const neighborCount = countAtNeighbors(row, col);
+
+                    if (neighborCount < 4) {
+                        totalCount++;
+                        newSteps.push(
+                            `Found @ at (${row}, ${col}) with ${neighborCount} neighbor(s) - COUNTED`
+                        );
+                    } else {
+                        newSteps.push(
+                            `Found @ at (${row}, ${col}) with ${neighborCount} neighbor(s) - skipped`
+                        );
+                    }
+                }
+            }
+        }
+
+        newSteps.push(`---`);
+        newSteps.push(
+            `Total "@" symbols with fewer than 4 "@" neighbors: ${totalCount}`
+        );
+
+        setSteps(newSteps);
+        setSolution(totalCount.toString());
+    };
 
     const handleScroll = useCallback(() => {
         if (!containerRef.current) return;
