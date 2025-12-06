@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# misc
+solve1.ts
+solve2.ts
+SolutionTemplate.tsx

@@ -13,6 +13,82 @@ export default function Part1() {
 
     const solve = () => {
         const newSteps: string[] = [];
+
+        const sections = input.trim().split(/\n\s*\n/);
+        if (sections.length < 2) {
+            newSteps.push(
+                "❌ Invalid input: expected ranges and numbers separated by an empty line"
+            );
+            setSteps(newSteps);
+            setSolution(null);
+            return;
+        }
+
+        const rangeLines = sections[0].trim().split("\n");
+        const numberLines = sections[1].trim().split("\n");
+
+        newSteps.push(
+            `📋 Found ${rangeLines.length} range(s) and ${numberLines.length} number(s)`
+        );
+
+        const ranges: Array<[number, number]> = [];
+        for (const line of rangeLines) {
+            const match = line.trim().match(/^(\d+)-(\d+)$/);
+            if (match) {
+                const start = parseInt(match[1], 10);
+                const end = parseInt(match[2], 10);
+                ranges.push([start, end]);
+                newSteps.push(`🎯 Range parsed: ${start}-${end} (inclusive)`);
+            } else {
+                newSteps.push(`⚠️ Skipping invalid range line: "${line}"`);
+            }
+        }
+
+        newSteps.push(`📊 Total ranges processed: ${ranges.length}`);
+
+        const isInAnyRange = (num: number): boolean => {
+            for (const [start, end] of ranges) {
+                if (num >= start && num <= end) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        const included: number[] = [];
+        const excluded: number[] = [];
+
+        for (const line of numberLines) {
+            const num = parseInt(line.trim(), 10);
+            if (isNaN(num)) {
+                newSteps.push(`⚠️ Skipping invalid number: "${line}"`);
+                continue;
+            }
+
+            if (isInAnyRange(num)) {
+                included.push(num);
+                const matchingRanges = ranges
+                    .filter(([start, end]) => num >= start && num <= end)
+                    .map(([start, end]) => `${start}-${end}`);
+                newSteps.push(
+                    `✅ ${num} is INCLUDED (in range${
+                        matchingRanges.length > 1 ? "s" : ""
+                    }: ${matchingRanges.join(", ")})`
+                );
+            } else {
+                excluded.push(num);
+                newSteps.push(`❌ ${num} is EXCLUDED (not in any range)`);
+            }
+        }
+
+        newSteps.push(`📥 Included array: [${included.join(", ")}]`);
+        newSteps.push(`📤 Excluded array: [${excluded.join(", ")}]`);
+
+        const result = included.length;
+        newSteps.push(`🎄 Final count of included numbers: ${result}`);
+
+        setSteps(newSteps);
+        setSolution(result.toString());
     };
 
     const handleScroll = useCallback(() => {
