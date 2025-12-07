@@ -64,14 +64,14 @@ export function solve(input: string): SolveResult {
             .join(", ")}`
     );
 
-    let totalCount = 0;
+    let result = 0;
     for (const [start, end] of merged) {
         const count = end - start + 1;
-        totalCount += count;
+        result += count;
         steps.push(`🔢 Range ${start}-${end} has ${count} elements`);
     }
 
-    steps.push(`🎄 Total element count: ${totalCount}`);
+    steps.push(`🎄 Total element count: ${result}`);
 
-    return { steps, solution: totalCount.toString() };
+    return { steps, solution: result.toString() };
 }
