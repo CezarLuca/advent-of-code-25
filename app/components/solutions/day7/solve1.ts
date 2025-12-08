@@ -77,8 +77,14 @@ export function solve(input: string): SolveResult {
         }
     }
 
-    const finalPattern = grid.map((row) => row.join("")).join("\n");
-    steps.push(`Final pattern:\n${finalPattern}`);
+    const rowNumWidth = String(grid.length - 1).length;
+    steps.push(`Final pattern (${grid.length} rows × ${grid[0].length} cols):`);
+    steps.push("─".repeat(rowNumWidth + 3 + grid[0].length));
+    grid.forEach((row, idx) => {
+        const rowNum = String(idx).padStart(rowNumWidth, " ");
+        steps.push(`${rowNum} │ ${row.join("")}`);
+    });
+    steps.push("─".repeat(rowNumWidth + 3 + grid[0].length));
 
     let count = 0;
     for (let rowIdx = 0; rowIdx < grid.length - 1; rowIdx++) {
