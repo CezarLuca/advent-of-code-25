@@ -2,73 +2,43 @@
 
 This project is an interactive web application designed to help users solve the Advent of Code challenges for the year 2025. The application provides a structured layout for each day's challenge, allowing users to input parameters, view intermediary steps, and see the final solution.
 
-## Project Structure
+## Project layout (key files)
 
-The project is organized as follows:
+-   app/
+    -   [page.tsx](app/page.tsx) — main page rendering all days
+    -   [layout.tsx](app/layout.tsx) — root layout and fonts
+    -   [globals.css](app/globals.css) — global styles & Tailwind imports
+    -   context/
+        -   [DayContext.tsx](app/context/DayContext.tsx) — provides [`DayProvider`](app/context/DayContext.tsx), [`useDayContext`](app/context/DayContext.tsx) and [`TOTAL_DAYS`](app/context/DayContext.tsx)
+    -   components/
+        -   [DayTemplate.tsx](app/components/DayTemplate.tsx) — lazy-loads day/part components (mapping lives here)
+        -   [SolutionTemplate.tsx](app/components/SolutionTemplate.tsx) — input, Solve button, virtualized steps list
+        -   [Navbar.tsx](app/components/Navbar.tsx), [Footer.tsx](app/components/Footer.tsx)
+        -   [ProblemToggle.tsx](app/components/ProblemToggle.tsx) and ui/
+            -   [ui/BurgerMenu.tsx](app/components/ui/BurgerMenu.tsx)
+            -   [ui/Collapsible.tsx](app/components/ui/Collapsible.tsx)
+        -   solutions/ — per-day solution entry components (e.g. [app/components/solutions/day1/Part1.tsx](app/components/solutions/day1/Part1.tsx))
+-   public/
+    -   inputs (example: [public/inputs/day1/Problem1.txt](public/inputs/day1/Problem1.txt))
+-   Root files:
+    -   [package.json](package.json) — scripts & deps
+    -   [tsconfig.json](tsconfig.json)
+    -   [postcss.config.mjs](postcss.config.mjs)
 
+## How it works
+
+-   The app state (open day, selected part) is centralized in [`DayProvider`](app/context/DayContext.tsx) and consumed with [`useDayContext`](app/context/DayContext.tsx).
+-   Each day section uses [DayTemplate.tsx](app/components/DayTemplate.tsx) which lazy-loads the appropriate Part component (e.g. `day3/Part1`) so UI bundles stay small.
+-   Each Part component renders a small UI that uses [`SolutionTemplate`](app/components/SolutionTemplate.tsx) to accept input, run the `solve` function and show step-by-step logs and the final answer.
+-   UI niceties: collapsible sections ([ui/Collapsible.tsx](app/components/ui/Collapsible.tsx)), mobile jump menu ([ui/BurgerMenu.tsx](app/components/ui/BurgerMenu.tsx)), and a responsive Navbar ([Navbar.tsx](app/components/Navbar.tsx)).
+
+## Running locally
+
+```bash
+npm install
+npm run dev
+# open http://localhost:3000
 ```
-advent-of-code-25
-├── app
-│   ├── components
-│   │   ├── ui
-│   │   │   ├── BurgerMenu.tsx
-│   │   │   └── Collapsible.tsx
-│   │   ├── solutions
-│   │   │   ├── day1
-|   |   |   |   ├── Part1.tsx
-|   |   |   |   └── Part2.tsx
-│   │   │   ├── day2
-|   |   |   |   ├── Part1.tsx
-|   |   |   |   └── Part2.tsx
-│   │   │   └── ...
-│   │   ├── DaySection.tsx
-│   │   ├── DayTemplate.tsx
-│   │   ├── Footer.tsx
-│   │   ├── Navbar.tsx
-│   │   └── ProblemToggle.tsx
-│   ├── context
-│   │   └── DayContext.tsx
-│   ├── layout.tsx
-│   └── page.tsx
-├── package.json
-├── tsconfig.json
-├── tailwind.config.ts
-└── README.md
-```
-
-## Features
-
--   **Collapsible Sections**: Each day's challenge is organized into collapsible sections for better navigation.
--   **Dynamic Problem Switching**: Users can switch between different problems for each day using the `ProblemToggle` component.
--   **Input Fields**: Each solution component includes input fields for users to enter initial parameters.
--   **Intermediary Steps Display**: The application displays intermediary steps to help users understand the solution process.
--   **Final Solution Display**: The final solution is presented clearly at the end of each day's section.
-
-## Getting Started
-
-To get started with the project, follow these steps:
-
-1. **Clone the Repository**:
-
-    ```bash
-    git clone <repository-url>
-    cd advent-of-code-25
-    ```
-
-2. **Install Dependencies**:
-
-    ```bash
-    npm install
-    ```
-
-3. **Run the Application**:
-
-    ```bash
-    npm run dev
-    ```
-
-4. **Open in Browser**:
-   Navigate to `http://localhost:3000` in your web browser to view the application.
 
 ## Contributing
 
