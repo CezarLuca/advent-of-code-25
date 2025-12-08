@@ -101,8 +101,8 @@ export function solve(input: string): SolveResult {
         );
     }
 
-    const totalSum = columnResults.reduce((sum, val) => sum + val, 0);
-    steps.push(`Final sum: ${columnResults.join(" + ")} = ${totalSum}`);
+    const result = columnResults.reduce((sum, val) => sum + val, 0);
+    steps.push(`Final sum: ${columnResults.join(" + ")} = ${result}`);
 
-    return { steps, solution: totalSum.toString() };
+    return { steps, solution: result.toString() };
 }

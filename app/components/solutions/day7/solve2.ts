@@ -112,7 +112,7 @@ export function solve(input: string): SolveResult {
         steps.push(`Number Row ${i + 1}: [${numberGrid[i].join(", ")}]`);
     }
 
-    let result = 0;
+    let totalSum = 0;
 
     for (let col = 0; col < numColumns; col++) {
         const symbol = symbols[col]?.trim() || "+";
@@ -136,10 +136,10 @@ export function solve(input: string): SolveResult {
                 ` ${symbol} `
             )} = ${columnResult}`
         );
-        result += columnResult;
+        totalSum += columnResult;
     }
 
-    steps.push(`Total sum of all column results: ${result}`);
+    steps.push(`Total sum of all column results: ${totalSum}`);
 
-    return { steps, solution: result.toString() };
+    return { steps, solution: totalSum.toString() };
 }
