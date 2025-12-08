@@ -36,18 +36,12 @@ export function solve(input: string): SolveResult {
             if (charBelow === ".") {
                 grid[rowIdx][colIdx] = "|";
                 newPipes.add(colIdx);
-                steps.push(
-                    `Row ${rowIdx}, Col ${colIdx}: Replaced '.' with '|'`
-                );
             } else if (charBelow === "^") {
                 const leftIdx = colIdx - 1;
                 const rightIdx = colIdx + 1;
 
                 if (leftIdx >= 0 && grid[rowIdx][leftIdx] !== "|") {
                     grid[rowIdx][leftIdx] = "|";
-                    steps.push(
-                        `Row ${rowIdx}, Col ${leftIdx}: Replaced with '|' (left of '^')`
-                    );
                 }
                 if (leftIdx >= 0) newPipes.add(leftIdx);
 
@@ -56,23 +50,16 @@ export function solve(input: string): SolveResult {
                     grid[rowIdx][rightIdx] !== "|"
                 ) {
                     grid[rowIdx][rightIdx] = "|";
-                    steps.push(
-                        `Row ${rowIdx}, Col ${rightIdx}: Replaced with '|' (right of '^')`
-                    );
                 }
                 if (rightIdx < grid[rowIdx].length) newPipes.add(rightIdx);
             } else if (charBelow === "|") {
                 newPipes.add(colIdx);
-                steps.push(
-                    `Row ${rowIdx}, Col ${colIdx}: Already '|', skipped`
-                );
             }
         }
 
         activePipes = newPipes;
 
         if (activePipes.size === 0) {
-            steps.push(`No more active pipes after row ${rowIdx}`);
             break;
         }
     }
@@ -80,22 +67,49 @@ export function solve(input: string): SolveResult {
     const finalPattern = grid.map((row) => row.join("")).join("\n");
     steps.push(`Final pattern:\n${finalPattern}`);
 
-    let count = 0;
-    for (let rowIdx = 0; rowIdx < grid.length - 1; rowIdx++) {
-        for (let colIdx = 0; colIdx < grid[rowIdx].length; colIdx++) {
-            if (
-                grid[rowIdx][colIdx] === "|" &&
-                grid[rowIdx + 1][colIdx] === "^"
-            ) {
-                count++;
-                steps.push(
-                    `Found '|' at (${rowIdx}, ${colIdx}) with '^' below`
-                );
+    const rows = grid.length;
+    const cols = grid[0].length;
+
+    const dp: number[][] = Array.from({ length: rows }, () =>
+        Array(cols).fill(0)
+    );
+
+    if (rows > 1 && grid[1][sIndex] === "|") {
+        dp[1][sIndex] = 1;
+        steps.push(`Starting path from row 1, column ${sIndex}`);
+    }
+
+    for (let row = 1; row < rows - 1; row++) {
+        for (let col = 0; col < cols; col++) {
+            if (grid[row][col] !== "|" || dp[row][col] === 0) continue;
+
+            const currentPaths = dp[row][col];
+            const charBelow = grid[row + 1][col];
+
+            if (charBelow === "|") {
+                dp[row + 1][col] += currentPaths;
+            } else if (charBelow === "^") {
+                if (col > 0 && grid[row + 1][col - 1] === "|") {
+                    dp[row + 1][col - 1] += currentPaths;
+                }
+                if (col < cols - 1 && grid[row + 1][col + 1] === "|") {
+                    dp[row + 1][col + 1] += currentPaths;
+                }
             }
         }
     }
 
-    steps.push(`Total count of '|' with '^' below: ${count}`);
+    let result = 0;
+    for (let col = 0; col < cols; col++) {
+        if (dp[rows - 1][col] > 0) {
+            steps.push(
+                `Bottom row col ${col}: ${dp[rows - 1][col]} paths reach here`
+            );
+            result += dp[rows - 1][col];
+        }
+    }
 
-    return { steps, solution: count.toString() };
+    steps.push(`Total unique complete paths from S to bottom: ${result}`);
+
+    return { steps, solution: result.toString() };
 }
