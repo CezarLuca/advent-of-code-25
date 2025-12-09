@@ -13,7 +13,6 @@ interface Connection {
     distance: number;
 }
 
-// Union-Find (Disjoint Set Union) data structure for efficient component tracking
 class UnionFind {
     parent: number[];
     rank: number[];
@@ -27,7 +26,7 @@ class UnionFind {
 
     find(x: number): number {
         if (this.parent[x] !== x) {
-            this.parent[x] = this.find(this.parent[x]); // Path compression
+            this.parent[x] = this.find(this.parent[x]);
         }
         return this.parent[x];
     }
@@ -37,10 +36,9 @@ class UnionFind {
         const rootY = this.find(y);
 
         if (rootX === rootY) {
-            return false; // Already in the same component
+            return false;
         }
 
-        // Union by rank
         if (this.rank[rootX] < this.rank[rootY]) {
             this.parent[rootX] = rootY;
         } else if (this.rank[rootX] > this.rank[rootY]) {
@@ -62,7 +60,6 @@ class UnionFind {
 export function solve(input: string): SolveResult {
     const steps: string[] = [];
 
-    // Step 1: Parse the input to extract nodes
     const lines = input
         .trim()
         .split("\n")
@@ -85,7 +82,6 @@ export function solve(input: string): SolveResult {
         return { steps, solution: "Need at least 2 nodes" };
     }
 
-    // Step 2: Compute all pairwise Euclidean distances
     const allConnections: Connection[] = [];
 
     for (let i = 0; i < nodes.length; i++) {
@@ -102,11 +98,9 @@ export function solve(input: string): SolveResult {
         `Computed ${allConnections.length} possible connections (all pairs)`
     );
 
-    // Step 3: Sort connections by distance (shortest first)
     allConnections.sort((a, b) => a.distance - b.distance);
     steps.push(`Sorted connections by distance (ascending)`);
 
-    // Step 4: Use Union-Find to add connections until all nodes are in one network
     const uf = new UnionFind(nodes.length);
     let connectionCount = 0;
     let lastConnection: Connection | null = null;
@@ -118,12 +112,11 @@ export function solve(input: string): SolveResult {
             break;
         }
 
-        // Try to union the two nodes
         const merged = uf.union(conn.nodeA, conn.nodeB);
 
         if (merged) {
             connectionCount++;
-            lastConnection = conn; // Track the last connection made
+            lastConnection = conn;
             steps.push(
                 `  Connection ${connectionCount}: Node ${conn.nodeA} <-> Node ${
                     conn.nodeB
@@ -136,7 +129,6 @@ export function solve(input: string): SolveResult {
 
     steps.push(`Network unified after ${connectionCount} connections`);
 
-    // Step 5: Get the X coordinates of the last connection's nodes and multiply them
     if (!lastConnection) {
         steps.push(`Error: No connections were made`);
         return { steps, solution: "No connections" };
