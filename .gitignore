@@ -41,5 +41,4 @@ yarn-error.log*
 next-env.d.ts
 
 # misc
-app/components/solutions/day8/solve2.ts
-app/components/solutions/day8/Part2.tsx
+
