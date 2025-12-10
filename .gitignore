@@ -43,3 +43,4 @@ next-env.d.ts
 # misc
 app/components/solutions/notable-failures/Day9Part2.ts
 app/components/solutions/notable-failures/solutionPlaceholder.ts
+app/components/solutions/notable-failures/AnimationModalGood.tsx
