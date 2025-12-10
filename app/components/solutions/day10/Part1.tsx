@@ -37,18 +37,8 @@ export default function Part1() {
                             onClick={() => openVisualization(0)}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                         >
-                            ▶ Play All ({puzzleData.length} machines)
+                            ▶ Play Animation ({puzzleData.length} machines)
                         </button>
-                        <div className="w-px bg-green-300 mx-2" />
-                        {puzzleData.map((_, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => openVisualization(idx)}
-                                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                            >
-                                #{idx + 1}
-                            </button>
-                        ))}
                     </div>
                 </div>
             )}
