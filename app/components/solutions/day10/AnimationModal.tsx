@@ -412,7 +412,7 @@ export default function AnimationModal({
     return (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-1 sm:p-2 lg:p-4 overflow-hidden">
             {/* Large screen layout: 4 racks side by side */}
-            <div className="hidden lg:flex w-full h-full max-h-[95vh] gap-2 items-stretch justify-center">
+            <div className="lg:flex w-full h-full max-h-[95vh] gap-2 items-stretch justify-center">
                 {/* RACK A */}
                 {rack1Rows.length > 0 && (
                     <div className="flex-1 max-w-[200px]">
@@ -453,16 +453,16 @@ export default function AnimationModal({
             </div>
 
             {/* Mobile/Tablet layout */}
-            <div className="lg:hidden w-full h-full flex flex-col max-h-screen">
+            {/* <div className="lg:hidden w-full h-full flex flex-col max-h-screen">
                 <ControlBar {...controlBarProps} variant="mobile" />
                 <CenterMachine
                     ref={machineRef}
                     {...machineProps}
                     variant="mobile"
-                />
+                /> */}
 
-                {/* Bottom Rack - Horizontal scrolling */}
-                <div className="flex-1 mt-2 mx-1 min-h-0">
+            {/* Bottom Rack - Horizontal scrolling */}
+            {/* <div className="flex-1 mt-2 mx-1 min-h-0">
                     <ServerRack
                         rows={allRows}
                         completedRows={completedRows}
@@ -475,7 +475,7 @@ export default function AnimationModal({
                         horizontal
                     />
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }
