@@ -1,7 +1,19 @@
 import { SolveResult } from "../../SolutionTemplate";
 
-export function solve(input: string): SolveResult {
+export interface PuzzleRowData {
+    targetPattern: number[];
+    buttons: number[][];
+    solutionSequence: number[];
+    minPresses: number;
+}
+
+export interface SolveResultWithData extends SolveResult {
+    puzzleData?: PuzzleRowData[];
+}
+
+export function solve(input: string): SolveResultWithData {
     const steps: string[] = [];
+    const puzzleData: PuzzleRowData[] = [];
     const lines = input
         .trim()
         .split("\n")
@@ -39,23 +51,25 @@ export function solve(input: string): SolveResult {
                 .join(" ")}`
         );
 
-        const minPresses = findMinimumPresses(
-            target,
-            buttons,
-            numToggles,
-            steps
-        );
+        const result = findMinimumPresses(target, buttons, numToggles, steps);
 
-        if (minPresses === -1) {
+        if (result.minPresses === -1) {
             steps.push(`  No solution exists for this row!`);
         } else {
-            steps.push(`  Minimum presses needed: ${minPresses}`);
-            totalPresses += minPresses;
+            steps.push(`  Minimum presses needed: ${result.minPresses}`);
+            totalPresses += result.minPresses;
+
+            puzzleData.push({
+                targetPattern: target,
+                buttons,
+                solutionSequence: result.sequence,
+                minPresses: result.minPresses,
+            });
         }
     }
 
     steps.push(`Total minimum button presses: ${totalPresses}`);
-    return { steps, solution: totalPresses.toString() };
+    return { steps, solution: totalPresses.toString(), puzzleData };
 }
 
 function findMinimumPresses(
@@ -63,12 +77,12 @@ function findMinimumPresses(
     buttons: number[][],
     numToggles: number,
     steps: string[]
-): number {
+): { minPresses: number; sequence: number[] } {
     const numButtons = buttons.length;
 
     if (numButtons <= 20) {
         let minPresses = Infinity;
-        let bestCombination: number[] | null = null;
+        let bestCombination: number[] = [];
 
         for (let mask = 0; mask < 1 << numButtons; mask++) {
             const state = new Array(numToggles).fill(0);
@@ -102,16 +116,16 @@ function findMinimumPresses(
             }
         }
 
-        if (bestCombination !== null) {
+        if (bestCombination.length > 0 || minPresses === 0) {
             steps.push(
                 `  Solution: press buttons at indices [${bestCombination.join(
                     ", "
                 )}]`
             );
-            return minPresses;
+            return { minPresses, sequence: bestCombination };
         }
-        return -1;
+        return { minPresses: -1, sequence: [] };
     }
 
-    return -1;
+    return { minPresses: -1, sequence: [] };
 }
