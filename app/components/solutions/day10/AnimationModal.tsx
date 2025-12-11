@@ -433,7 +433,7 @@ export default function AnimationModal({
                     <CenterMachine
                         ref={machineRef}
                         {...machineProps}
-                        variant="desktop"
+                        // variant="desktop"
                     />
                 </div>
 
