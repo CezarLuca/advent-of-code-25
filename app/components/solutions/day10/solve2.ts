@@ -1,7 +1,18 @@
-import { SolveResult } from "../../SolutionTemplate";
+export interface RowResult {
+    rowIndex: number;
+    presses: number;
+    status: "pending" | "processing" | "done" | "error";
+}
 
-export function solve(input: string): SolveResult {
-    const steps: string[] = [];
+export interface ProgressCallback {
+    (rowIndex: number, presses: number, status: RowResult["status"]): void;
+}
+
+export async function solveAsync(
+    input: string,
+    onProgress: ProgressCallback,
+    signal?: AbortSignal
+): Promise<number> {
     const lines = input
         .trim()
         .split("\n")
@@ -10,21 +21,25 @@ export function solve(input: string): SolveResult {
     let totalPresses = 0;
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const line = lines[lineIdx];
-        steps.push(`Processing row ${lineIdx + 1}: ${line}`);
+        if (signal?.aborted) {
+            throw new Error("Aborted");
+        }
 
-        // Parse the target values from curly brackets {3,5,4,7}
+        onProgress(lineIdx, 0, "processing");
+        await yieldToMain();
+
+        const line = lines[lineIdx];
+
         const targetMatch = line.match(/\{([^}]+)\}/);
         if (!targetMatch) {
-            steps.push(`  Skipping - no target values found in curly brackets`);
+            onProgress(lineIdx, 0, "done");
             continue;
         }
+
         const targets = targetMatch[1]
             .split(",")
             .map((n) => parseInt(n.trim()));
-        steps.push(`  Target values: [${targets.join(", ")}]`);
 
-        // Parse buttons (index groups in parentheses) - between ] and {
         const afterBracket = line.substring(line.indexOf("]") + 1);
         const beforeCurly = afterBracket.split("{")[0];
         const buttonMatches = beforeCurly.match(/\(([^)]+)\)/g) || [];
@@ -33,51 +48,45 @@ export function solve(input: string): SolveResult {
             const inside = match.slice(1, -1);
             return inside.split(",").map((n) => parseInt(n.trim()));
         });
-        steps.push(
-            `  Found ${buttons.length} buttons: ${buttons
-                .map((b) => `(${b.join(",")})`)
-                .join(" ")}`
-        );
 
-        // Find minimum button presses to reach target values
-        const result = findMinimumPresses(targets, buttons, steps);
+        try {
+            const rowPresses = await solveRowAsync(targets, buttons, signal);
 
-        if (result.totalPresses === -1) {
-            steps.push(`  No solution exists for this row!`);
-        } else {
-            // Format the solution description
-            const solutionParts: string[] = [];
-            for (let i = 0; i < result.pressCounts.length; i++) {
-                if (result.pressCounts[i] > 0) {
-                    solutionParts.push(
-                        `(${buttons[i].join(",")}) x${result.pressCounts[i]}`
-                    );
-                }
+            if (rowPresses === -1) {
+                onProgress(lineIdx, 0, "error");
+            } else {
+                totalPresses += rowPresses;
+                onProgress(lineIdx, rowPresses, "done");
             }
-            steps.push(`  Solution: ${solutionParts.join(", ")}`);
-            steps.push(`  Total presses for this row: ${result.totalPresses}`);
-            totalPresses += result.totalPresses;
+        } catch (e) {
+            if (signal?.aborted) throw e;
+            console.error(`Row ${lineIdx} error:`, e);
+            onProgress(lineIdx, 0, "error");
         }
     }
 
-    steps.push(`Total minimum button presses across all rows: ${totalPresses}`);
-    return { steps, solution: totalPresses.toString() };
+    return totalPresses;
 }
 
-function findMinimumPresses(
+function yieldToMain(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function solveRowAsync(
     targets: number[],
     buttons: number[][],
-    steps: string[]
-): { totalPresses: number; pressCounts: number[] } {
+    signal?: AbortSignal
+): Promise<number> {
     const numPositions = targets.length;
     const numButtons = buttons.length;
 
-    // Build a matrix: each row is a position, each column is a button
-    // matrix[pos][btn] = 1 if button btn affects position pos, 0 otherwise
-    const matrix: number[][] = [];
-    for (let pos = 0; pos < numPositions; pos++) {
-        matrix[pos] = new Array(numButtons).fill(0);
+    if (numButtons === 0) {
+        return targets.every((t) => t === 0) ? 0 : -1;
     }
+
+    const matrix: number[][] = Array.from({ length: numPositions }, () =>
+        Array(numButtons).fill(0)
+    );
 
     for (let btn = 0; btn < numButtons; btn++) {
         for (const pos of buttons[btn]) {
@@ -87,178 +96,194 @@ function findMinimumPresses(
         }
     }
 
-    steps.push(`  Built ${numPositions}x${numButtons} coefficient matrix`);
-
-    // Sort buttons by how many positions they affect (more positions = more "efficient")
-    // This helps us prioritize buttons that contribute to multiple targets
-    const buttonEfficiency = buttons.map((b, i) => ({
-        idx: i,
-        count: b.filter((p) => p >= 0 && p < numPositions).length,
-    }));
-    buttonEfficiency.sort((a, b) => b.count - a.count);
-    const sortedButtonIndices = buttonEfficiency.map((b) => b.idx);
-
-    // Use branch and bound to find the minimum total presses
-    const result = branchAndBound(
+    const result = await findMinimumPresses(
         matrix,
-        [...targets],
-        numButtons,
+        targets,
         numPositions,
-        sortedButtonIndices,
-        steps
+        numButtons,
+        signal
     );
 
-    if (result === null) {
-        return { totalPresses: -1, pressCounts: [] };
-    }
-
-    const total = result.reduce((sum, c) => sum + c, 0);
-    return { totalPresses: total, pressCounts: result };
+    return result;
 }
 
-function branchAndBound(
+async function findMinimumPresses(
     matrix: number[][],
     targets: number[],
-    numButtons: number,
     numPositions: number,
-    sortedButtonIndices: number[],
-    steps: string[]
-): number[] | null {
-    let bestSolution: number[] | null = null;
-    let bestTotal = Infinity;
+    numButtons: number,
+    signal?: AbortSignal
+): Promise<number> {
+    const remaining = [...targets];
 
-    const pressCounts = new Array(numButtons).fill(0);
-    const currentNeeds = [...targets];
-
-    function search(btnOrderIdx: number, currentTotal: number): void {
-        // Pruning: if current total already >= best, stop
-        if (currentTotal >= bestTotal) {
-            return;
-        }
-
-        // Check if all needs are satisfied
-        let allSatisfied = true;
-        let hasNegative = false;
+    const buttonOrder = Array.from({ length: numButtons }, (_, i) => i);
+    buttonOrder.sort((a, b) => {
+        let countA = 0,
+            countB = 0;
         for (let pos = 0; pos < numPositions; pos++) {
-            if (currentNeeds[pos] < 0) {
-                hasNegative = true;
-                break;
-            }
-            if (currentNeeds[pos] > 0) {
-                allSatisfied = false;
-            }
+            if (matrix[pos][a] === 1) countA++;
+            if (matrix[pos][b] === 1) countB++;
         }
+        return countB - countA;
+    });
 
-        if (hasNegative) {
-            return; // Invalid state
+    const maxTarget = Math.max(...targets);
+    const upperBound = maxTarget * numButtons;
+
+    let iterationCount = 0;
+
+    const result = await backtrackSolve(
+        matrix,
+        remaining,
+        buttonOrder,
+        0,
+        0,
+        numPositions,
+        numButtons,
+        upperBound,
+        () => {
+            iterationCount++;
+            return iterationCount % 10000 === 0 && !!signal?.aborted;
         }
+    );
 
-        if (allSatisfied) {
-            // Found a valid solution
-            if (currentTotal < bestTotal) {
-                bestTotal = currentTotal;
-                bestSolution = [...pressCounts];
-            }
-            return;
-        }
-
-        if (btnOrderIdx >= numButtons) {
-            return; // No more buttons to try
-        }
-
-        const btn = sortedButtonIndices[btnOrderIdx];
-
-        // Calculate max presses for this button (limited by remaining needs)
-        let maxPresses = Infinity;
-        for (let pos = 0; pos < numPositions; pos++) {
-            if (matrix[pos][btn] === 1) {
-                maxPresses = Math.min(maxPresses, currentNeeds[pos]);
-            }
-        }
-
-        if (maxPresses === Infinity || maxPresses < 0) {
-            maxPresses = 0;
-        }
-
-        // Calculate minimum bound: sum of remaining needs / max buttons that can contribute
-        // This helps with pruning
-        const minAdditionalNeeded = calculateLowerBound(
-            matrix,
-            currentNeeds,
-            numPositions,
-            sortedButtonIndices,
-            btnOrderIdx
-        );
-
-        if (currentTotal + minAdditionalNeeded >= bestTotal) {
-            return; // Prune: can't beat best solution
-        }
-
-        // Try different press counts for this button (from max to 0 for better pruning)
-        // Starting from higher values tends to find good solutions faster
-        for (let presses = maxPresses; presses >= 0; presses--) {
-            pressCounts[btn] = presses;
-
-            // Update needs
-            for (let pos = 0; pos < numPositions; pos++) {
-                if (matrix[pos][btn] === 1) {
-                    currentNeeds[pos] -= presses;
-                }
-            }
-
-            search(btnOrderIdx + 1, currentTotal + presses);
-
-            // Restore needs
-            for (let pos = 0; pos < numPositions; pos++) {
-                if (matrix[pos][btn] === 1) {
-                    currentNeeds[pos] += presses;
-                }
-            }
-        }
-
-        pressCounts[btn] = 0;
-    }
-
-    search(0, 0);
-
-    if (bestSolution !== null) {
-        steps.push(`  Found optimal solution with ${bestTotal} total presses`);
-    }
-
-    return bestSolution;
+    return result === null ? -1 : result;
 }
 
-function calculateLowerBound(
+async function backtrackSolve(
     matrix: number[][],
-    needs: number[],
+    remaining: number[],
+    buttonOrder: number[],
+    btnIdx: number,
+    currentSum: number,
     numPositions: number,
-    sortedButtonIndices: number[],
-    startIdx: number
-): number {
-    // Simple lower bound: for each position, at least ceil(need / maxContributors) presses
-    // This is a relaxation that gives us a minimum bound
-    let maxNeed = 0;
+    numButtons: number,
+    bestSoFar: number,
+    checkAbort: () => boolean
+): Promise<number | null> {
+    if (checkAbort()) {
+        throw new Error("Aborted");
+    }
+
+    if (currentSum >= bestSoFar) {
+        return null;
+    }
+
+    // Check if solved or invalid
+    let allZero = true;
     for (let pos = 0; pos < numPositions; pos++) {
-        if (needs[pos] > 0) {
-            // Count how many remaining buttons can contribute to this position
+        if (remaining[pos] < 0) {
+            return null; // Invalid - went negative
+        }
+        if (remaining[pos] > 0) {
+            allZero = false;
+        }
+    }
+
+    if (allZero) {
+        return currentSum; // Found a solution!
+    }
+
+    if (btnIdx >= numButtons) {
+        return null; // No more buttons to try
+    }
+
+    // Calculate lower bound: for each position, we need at least ceil(remaining/maxContributors)
+    let lowerBound = 0;
+    for (let pos = 0; pos < numPositions; pos++) {
+        if (remaining[pos] > 0) {
+            // Count how many remaining buttons can affect this position
             let contributors = 0;
-            for (let i = startIdx; i < sortedButtonIndices.length; i++) {
-                const btn = sortedButtonIndices[i];
-                if (matrix[pos][btn] === 1) {
+            for (let i = btnIdx; i < numButtons; i++) {
+                if (matrix[pos][buttonOrder[i]] === 1) {
                     contributors++;
                 }
             }
-            if (contributors === 0 && needs[pos] > 0) {
-                return Infinity; // Impossible to satisfy
+            if (contributors === 0) {
+                return null; // No way to satisfy this position
             }
-            // At minimum, we need needs[pos] presses total to satisfy this position
-            // but buttons might overlap, so we use max need as a lower bound
-            maxNeed = Math.max(maxNeed, needs[pos]);
+            lowerBound = Math.max(
+                lowerBound,
+                Math.ceil(remaining[pos] / contributors)
+            );
         }
     }
-    // A very loose lower bound - the maximum single position need
-    // divided by max possible contribution rate
-    return Math.ceil(
-        maxNeed / Math.max(1, sortedButtonIndices.length - startIdx)
-    );
+
+    if (currentSum + lowerBound >= bestSoFar) {
+        return null; // Even best case won't beat current best
+    }
+
+    const btn = buttonOrder[btnIdx];
+
+    // Find the maximum presses this button can contribute
+    // (limited by the minimum remaining value of positions it affects)
+    let maxPresses = Infinity;
+    let affectsAny = false;
+    for (let pos = 0; pos < numPositions; pos++) {
+        if (matrix[pos][btn] === 1) {
+            affectsAny = true;
+            maxPresses = Math.min(maxPresses, remaining[pos]);
+        }
+    }
+
+    if (!affectsAny) {
+        // This button doesn't affect any position, skip it with 0 presses
+        return backtrackSolve(
+            matrix,
+            remaining,
+            buttonOrder,
+            btnIdx + 1,
+            currentSum,
+            numPositions,
+            numButtons,
+            bestSoFar,
+            checkAbort
+        );
+    }
+
+    if (maxPresses === Infinity) {
+        maxPresses = 0;
+    }
+
+    // Cap by what we can afford
+    maxPresses = Math.min(maxPresses, bestSoFar - currentSum - 1);
+
+    let bestResult: number | null = null;
+
+    // Try from highest to lowest (often finds good solutions faster)
+    for (let presses = maxPresses; presses >= 0; presses--) {
+        // Apply presses
+        for (let pos = 0; pos < numPositions; pos++) {
+            if (matrix[pos][btn] === 1) {
+                remaining[pos] -= presses;
+            }
+        }
+
+        const result = await backtrackSolve(
+            matrix,
+            remaining,
+            buttonOrder,
+            btnIdx + 1,
+            currentSum + presses,
+            numPositions,
+            numButtons,
+            bestResult !== null ? bestResult : bestSoFar,
+            checkAbort
+        );
+
+        // Restore
+        for (let pos = 0; pos < numPositions; pos++) {
+            if (matrix[pos][btn] === 1) {
+                remaining[pos] += presses;
+            }
+        }
+
+        if (result !== null) {
+            if (bestResult === null || result < bestResult) {
+                bestResult = result;
+            }
+        }
+    }
+
+    return bestResult;
 }
