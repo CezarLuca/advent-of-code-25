@@ -1,5 +1,6 @@
 // Web Worker for solving rows - standalone file version
 // Note: The actual worker code is embedded in solve2.ts as a string for Next.js compatibility
+// This file serves as documentation and for potential direct worker usage
 
 interface WorkerMessage {
     type: "solve";

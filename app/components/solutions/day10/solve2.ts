@@ -16,6 +16,29 @@ export interface ProgressCallback {
     ): void;
 }
 
+// Detect optimal worker count (use navigator.hardwareConcurrency or default to 4)
+function getWorkerCount(): number {
+    if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
+        // Use up to 8 workers, but leave 1-2 cores free for UI
+        return Math.min(Math.max(navigator.hardwareConcurrency - 1, 2), 8);
+    }
+    return 4; // Safe default
+}
+
+interface WorkerTask {
+    lineIdx: number;
+    line: string;
+    startTime: number;
+    resolve: (presses: number) => void;
+    reject: (error: Error) => void;
+}
+
+interface WorkerInstance {
+    worker: Worker;
+    busy: boolean;
+    currentTask: WorkerTask | null;
+}
+
 export async function solveAsync(
     input: string,
     onProgress: ProgressCallback,
@@ -26,102 +49,162 @@ export async function solveAsync(
         .split("\n")
         .filter((line) => line.trim());
 
-    let totalPresses = 0;
+    if (lines.length === 0) return 0;
 
     const workerCode = getWorkerCode();
     const blob = new Blob([workerCode], { type: "application/javascript" });
     const workerUrl = URL.createObjectURL(blob);
 
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        if (signal?.aborted) {
-            URL.revokeObjectURL(workerUrl);
-            throw new Error("Aborted");
-        }
+    const workerCount = Math.min(getWorkerCount(), lines.length);
+    const workers: WorkerInstance[] = [];
+    const taskQueue: WorkerTask[] = [];
+    const results: Map<number, number> = new Map();
 
-        onProgress(lineIdx, 0, "processing", "Starting...", 0);
+    // Create worker pool
+    for (let i = 0; i < workerCount; i++) {
+        const worker = new Worker(workerUrl);
+        const workerInstance: WorkerInstance = {
+            worker,
+            busy: false,
+            currentTask: null,
+        };
 
-        const line = lines[lineIdx];
-        const rowStartTime = Date.now();
+        worker.onmessage = (e) => {
+            const task = workerInstance.currentTask;
+            if (!task) return;
 
-        try {
-            const rowPresses = await solveRowInWorker(
-                workerUrl,
-                line,
-                lineIdx,
-                signal,
-                (progress) => {
-                    const elapsed = Date.now() - rowStartTime;
-                    onProgress(lineIdx, 0, "processing", progress, elapsed);
+            if (e.data.type === "progress") {
+                const elapsed = Date.now() - task.startTime;
+                onProgress(
+                    task.lineIdx,
+                    0,
+                    "processing",
+                    e.data.message,
+                    elapsed
+                );
+            } else if (e.data.type === "result") {
+                const elapsed = Date.now() - task.startTime;
+                workerInstance.busy = false;
+                workerInstance.currentTask = null;
+
+                if (e.data.presses === -1) {
+                    onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                } else {
+                    onProgress(
+                        task.lineIdx,
+                        e.data.presses,
+                        "done",
+                        undefined,
+                        elapsed
+                    );
                 }
-            );
+                task.resolve(e.data.presses);
 
-            const rowElapsed = Date.now() - rowStartTime;
+                // Process next task in queue
+                processNextTask(workerInstance);
+            } else if (e.data.type === "error") {
+                const elapsed = Date.now() - task.startTime;
+                workerInstance.busy = false;
+                workerInstance.currentTask = null;
+                onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                task.resolve(-1);
 
-            if (rowPresses === -1) {
-                onProgress(lineIdx, 0, "error", undefined, rowElapsed);
-            } else {
-                totalPresses += rowPresses;
-                onProgress(lineIdx, rowPresses, "done", undefined, rowElapsed);
+                processNextTask(workerInstance);
             }
-        } catch (e) {
-            if (signal?.aborted) {
-                URL.revokeObjectURL(workerUrl);
-                throw e;
+        };
+
+        worker.onerror = () => {
+            const task = workerInstance.currentTask;
+            if (task) {
+                const elapsed = Date.now() - task.startTime;
+                workerInstance.busy = false;
+                workerInstance.currentTask = null;
+                onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                task.reject(new Error("Worker error"));
             }
-            console.error(`Row ${lineIdx} error:`, e);
-            const rowElapsed = Date.now() - rowStartTime;
-            onProgress(lineIdx, 0, "error", undefined, rowElapsed);
+        };
+
+        workers.push(workerInstance);
+    }
+
+    const processNextTask = (workerInstance: WorkerInstance) => {
+        if (signal?.aborted || taskQueue.length === 0) return;
+
+        const task = taskQueue.shift()!;
+        workerInstance.busy = true;
+        workerInstance.currentTask = task;
+        task.startTime = Date.now();
+        onProgress(task.lineIdx, 0, "processing", "Starting...", 0);
+        workerInstance.worker.postMessage({
+            type: "solve",
+            line: task.line,
+            rowIndex: task.lineIdx,
+        });
+    };
+
+    // Create promises for all rows
+    const rowPromises: Promise<number>[] = lines.map((line, lineIdx) => {
+        return new Promise<number>((resolve, reject) => {
+            taskQueue.push({
+                lineIdx,
+                line,
+                startTime: 0,
+                resolve: (presses) => {
+                    results.set(lineIdx, presses);
+                    resolve(presses);
+                },
+                reject,
+            });
+        });
+    });
+
+    // Handle abort
+    if (signal) {
+        signal.addEventListener(
+            "abort",
+            () => {
+                // Clear queue and terminate workers
+                taskQueue.length = 0;
+                workers.forEach((w) => {
+                    if (w.currentTask) {
+                        w.currentTask.reject(new Error("Aborted"));
+                    }
+                    w.worker.terminate();
+                });
+            },
+            { once: true }
+        );
+    }
+
+    // Start initial tasks on available workers
+    workers.forEach((workerInstance) => {
+        processNextTask(workerInstance);
+    });
+
+    // Wait for all rows to complete
+    try {
+        await Promise.all(rowPromises);
+    } catch (e) {
+        // Cleanup on error
+        workers.forEach((w) => w.worker.terminate());
+        URL.revokeObjectURL(workerUrl);
+        throw e;
+    }
+
+    // Cleanup
+    workers.forEach((w) => w.worker.terminate());
+    URL.revokeObjectURL(workerUrl);
+
+    // Sum up results
+    let totalPresses = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const presses = results.get(i) ?? 0;
+        if (presses > 0) {
+            totalPresses += presses;
         }
     }
 
-    URL.revokeObjectURL(workerUrl);
     return totalPresses;
-}
-
-function solveRowInWorker(
-    workerUrl: string,
-    line: string,
-    rowIndex: number,
-    signal?: AbortSignal,
-    onProgress?: (progress: string) => void
-): Promise<number> {
-    return new Promise((resolve, reject) => {
-        const worker = new Worker(workerUrl);
-
-        const cleanup = () => {
-            worker.terminate();
-        };
-
-        if (signal) {
-            signal.addEventListener(
-                "abort",
-                () => {
-                    cleanup();
-                    reject(new Error("Aborted"));
-                },
-                { once: true }
-            );
-        }
-
-        worker.onmessage = (e) => {
-            if (e.data.type === "progress") {
-                onProgress?.(e.data.message);
-            } else if (e.data.type === "result") {
-                cleanup();
-                resolve(e.data.presses);
-            } else if (e.data.type === "error") {
-                cleanup();
-                resolve(-1);
-            }
-        };
-
-        worker.onerror = (e) => {
-            cleanup();
-            reject(e);
-        };
-
-        worker.postMessage({ type: "solve", line, rowIndex });
-    });
 }
 
 function getWorkerCode(): string {

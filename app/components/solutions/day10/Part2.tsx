@@ -11,6 +11,13 @@ function formatTime(ms: number): string {
     return `${mins}m ${secs}s`;
 }
 
+function getWorkerCount(): number {
+    if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
+        return Math.min(Math.max(navigator.hardwareConcurrency - 1, 2), 8);
+    }
+    return 4;
+}
+
 export default function Part2() {
     const [input, setInput] = useState("");
     const [rows, setRows] = useState<RowResult[]>([]);
@@ -20,6 +27,8 @@ export default function Part2() {
     const [totalElapsed, setTotalElapsed] = useState<number>(0);
     const [startTime, setStartTime] = useState<number | null>(null);
     const abortRef = useRef<AbortController | null>(null);
+
+    const workerCount = getWorkerCount();
 
     // Update total elapsed time while running
     useEffect(() => {
@@ -95,7 +104,7 @@ export default function Part2() {
     }, [input, isRunning]);
 
     const completedCount = rows.filter((r) => r.status === "done").length;
-    const processingRow = rows.find((r) => r.status === "processing");
+    const processingRows = rows.filter((r) => r.status === "processing");
     const totalRowTime = rows
         .filter((r) => r.status === "done" && r.elapsedMs)
         .reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
@@ -128,16 +137,17 @@ export default function Part2() {
                     <div className="flex justify-between items-center mb-2">
                         <h3 className="font-bold text-blue-800">
                             📊 Progress: {completedCount}/{rows.length} rows
-                            {processingRow &&
-                                ` (processing row ${
-                                    processingRow.rowIndex + 1
-                                }...)`}
+                            {processingRows.length > 0 &&
+                                ` (${processingRows.length} rows in parallel)`}
                         </h3>
-                        <div className="text-blue-700 font-mono text-sm">
-                            ⏱️{" "}
-                            {formatTime(
-                                isRunning ? totalElapsed : totalRowTime
-                            )}
+                        <div className="text-blue-700 font-mono text-sm flex gap-3">
+                            <span>🔧 {workerCount} workers</span>
+                            <span>
+                                ⏱️{" "}
+                                {formatTime(
+                                    isRunning ? totalElapsed : totalRowTime
+                                )}
+                            </span>
                         </div>
                     </div>
                     <div className="w-full bg-blue-200 rounded-full h-3 mb-2">
@@ -150,6 +160,14 @@ export default function Part2() {
                             }}
                         />
                     </div>
+                    {processingRows.length > 0 && (
+                        <div className="text-xs text-blue-600 font-mono mb-1">
+                            Active:{" "}
+                            {processingRows
+                                .map((r) => `Row ${r.rowIndex + 1}`)
+                                .join(", ")}
+                        </div>
+                    )}
                     {currentProgress && (
                         <p className="text-sm text-blue-600 font-mono animate-pulse">
                             {currentProgress}
