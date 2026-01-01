@@ -1,14 +1,36 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { solveAsync, RowResult } from "./solve2";
+
+function formatTime(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const mins = Math.floor(ms / 60000);
+    const secs = ((ms % 60000) / 1000).toFixed(0);
+    return `${mins}m ${secs}s`;
+}
 
 export default function Part2() {
     const [input, setInput] = useState("");
     const [rows, setRows] = useState<RowResult[]>([]);
     const [totalPresses, setTotalPresses] = useState<number | null>(null);
     const [isRunning, setIsRunning] = useState(false);
+    const [currentProgress, setCurrentProgress] = useState<string>("");
+    const [totalElapsed, setTotalElapsed] = useState<number>(0);
+    const [startTime, setStartTime] = useState<number | null>(null);
     const abortRef = useRef<AbortController | null>(null);
+
+    // Update total elapsed time while running
+    useEffect(() => {
+        if (!isRunning || startTime === null) return;
+
+        const interval = setInterval(() => {
+            setTotalElapsed(Date.now() - startTime);
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [isRunning, startTime]);
 
     const handleSolve = useCallback(async () => {
         if (isRunning) {
@@ -32,6 +54,9 @@ export default function Part2() {
         );
         setRows(initialRows);
         setTotalPresses(null);
+        setCurrentProgress("");
+        setTotalElapsed(0);
+        setStartTime(Date.now());
         setIsRunning(true);
 
         abortRef.current = new AbortController();
@@ -39,27 +64,41 @@ export default function Part2() {
         try {
             const total = await solveAsync(
                 input,
-                (rowIndex, presses, status) => {
+                (rowIndex, presses, status, progress, elapsedMs) => {
                     setRows((prev) => {
                         const next = [...prev];
-                        next[rowIndex] = { rowIndex, presses, status };
+                        next[rowIndex] = {
+                            rowIndex,
+                            presses,
+                            status,
+                            progress,
+                            elapsedMs,
+                        };
                         return next;
                     });
+                    if (progress) {
+                        setCurrentProgress(progress);
+                    }
                 },
                 abortRef.current.signal
             );
             setTotalPresses(total);
+            setCurrentProgress("");
         } catch (e) {
             if ((e as Error).message !== "Aborted") {
                 console.error(e);
             }
         } finally {
             setIsRunning(false);
+            setStartTime(null);
         }
     }, [input, isRunning]);
 
     const completedCount = rows.filter((r) => r.status === "done").length;
     const processingRow = rows.find((r) => r.status === "processing");
+    const totalRowTime = rows
+        .filter((r) => r.status === "done" && r.elapsedMs)
+        .reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
 
     return (
         <div className="flex flex-col gap-4">
@@ -86,14 +125,22 @@ export default function Part2() {
             {/* Progress indicator */}
             {rows.length > 0 && (
                 <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg">
-                    <h3 className="font-bold mb-2 text-blue-800">
-                        📊 Progress: {completedCount}/{rows.length} rows
-                        {processingRow &&
-                            ` (processing row ${
-                                processingRow.rowIndex + 1
-                            }...)`}
-                    </h3>
-                    <div className="w-full bg-blue-200 rounded-full h-3">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold text-blue-800">
+                            📊 Progress: {completedCount}/{rows.length} rows
+                            {processingRow &&
+                                ` (processing row ${
+                                    processingRow.rowIndex + 1
+                                }...)`}
+                        </h3>
+                        <div className="text-blue-700 font-mono text-sm">
+                            ⏱️{" "}
+                            {formatTime(
+                                isRunning ? totalElapsed : totalRowTime
+                            )}
+                        </div>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3 mb-2">
                         <div
                             className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                             style={{
@@ -103,6 +150,11 @@ export default function Part2() {
                             }}
                         />
                     </div>
+                    {currentProgress && (
+                        <p className="text-sm text-blue-600 font-mono animate-pulse">
+                            {currentProgress}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -113,7 +165,7 @@ export default function Part2() {
                         ❄️ Row Results:
                     </h3>
                     <div className="max-h-64 overflow-y-auto border-2 border-green-300 rounded-lg bg-white">
-                        <div className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-1 p-3 text-sm">
+                        <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 gap-y-1 p-3 text-sm">
                             {rows.map((row) => (
                                 <div key={row.rowIndex} className="contents">
                                     <span className="text-green-600 font-mono">
@@ -138,6 +190,12 @@ export default function Part2() {
                                             ? "no solution"
                                             : "pending"}
                                     </span>
+                                    <span className="text-gray-500 font-mono text-xs">
+                                        {row.elapsedMs !== undefined &&
+                                        row.status !== "pending"
+                                            ? formatTime(row.elapsedMs)
+                                            : ""}
+                                    </span>
                                     <span>
                                         {row.status === "done" && "✅"}
                                         {row.status === "processing" && "⏳"}
@@ -153,14 +211,25 @@ export default function Part2() {
 
             {/* Solution */}
             <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-lg">
-                <h3 className="font-bold text-yellow-800">⭐ Solution:</h3>
-                <p className="font-mono text-lg text-yellow-900">
-                    {totalPresses !== null
-                        ? totalPresses
-                        : isRunning
-                        ? "Computing..."
-                        : "—"}
-                </p>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="font-bold text-yellow-800">
+                            ⭐ Solution:
+                        </h3>
+                        <p className="font-mono text-lg text-yellow-900">
+                            {totalPresses !== null
+                                ? totalPresses
+                                : isRunning
+                                ? "Computing..."
+                                : "—"}
+                        </p>
+                    </div>
+                    {totalPresses !== null && (
+                        <div className="text-yellow-700 font-mono text-sm">
+                            Total time: {formatTime(totalRowTime)}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
