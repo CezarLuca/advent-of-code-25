@@ -13,20 +13,33 @@ interface WorkerResponse {
     rowIndex: number;
     presses: number;
     message?: string;
+    iterations?: number;
+    best?: number;
+    currentSum?: number;
+    btnIdx?: number;
+    numButtons?: number;
 }
 
 let iterationCount = 0;
 let lastProgressTime = 0;
 let startTime = 0;
 let bestFound = Infinity;
+let currentBtnIdx = 0;
+let currentSum = 0;
+let totalButtons = 0;
 
-function reportProgress(msg: string): void {
+function reportProgress(msg: string, forceReport = false): void {
     const now = Date.now();
-    if (now - lastProgressTime > 250) {
+    if (forceReport || now - lastProgressTime > 5000) {
         const elapsed = ((now - startTime) / 1000).toFixed(1);
         self.postMessage({
             type: "progress",
             message: msg + " [" + elapsed + "s]",
+            iterations: iterationCount,
+            best: bestFound,
+            currentSum: currentSum,
+            btnIdx: currentBtnIdx,
+            numButtons: totalButtons,
         } as WorkerResponse);
         lastProgressTime = now;
     }
@@ -36,6 +49,9 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
     const { line, rowIndex } = e.data;
     iterationCount = 0;
     bestFound = Infinity;
+    currentBtnIdx = 0;
+    currentSum = 0;
+    totalButtons = 0;
     startTime = Date.now();
     lastProgressTime = startTime;
 
@@ -115,8 +131,9 @@ function solveRow(targets: number[], buttons: number[][]): number {
 
     const maxTarget = Math.max(...targets);
     bestFound = maxTarget * numButtons;
+    totalButtons = numButtons;
 
-    reportProgress("Starting search, upper bound: " + bestFound);
+    reportProgress("Starting search, upper bound: " + bestFound, true);
 
     const remaining = Int32Array.from(targets);
     const result = backtrackSolve(
@@ -137,11 +154,13 @@ function backtrackSolve(
     remaining: Int32Array,
     buttonOrder: number[],
     btnIdx: number,
-    currentSum: number,
+    currSum: number,
     numPositions: number,
     numButtons: number
 ): number | null {
     iterationCount++;
+    currentBtnIdx = btnIdx;
+    currentSum = currSum;
 
     if (iterationCount % 100000 === 0) {
         reportProgress(
@@ -150,7 +169,7 @@ function backtrackSolve(
                 "M, best: " +
                 bestFound +
                 ", sum: " +
-                currentSum +
+                currSum +
                 ", btn: " +
                 (btnIdx + 1) +
                 "/" +
@@ -158,7 +177,7 @@ function backtrackSolve(
         );
     }
 
-    if (currentSum >= bestFound) {
+    if (currSum >= bestFound) {
         return null;
     }
 
@@ -169,11 +188,11 @@ function backtrackSolve(
     }
 
     if (allZero) {
-        if (currentSum < bestFound) {
-            bestFound = currentSum;
-            reportProgress("Found solution: " + currentSum);
+        if (currSum < bestFound) {
+            bestFound = currSum;
+            reportProgress("Found solution: " + currSum, true);
         }
-        return currentSum;
+        return currSum;
     }
 
     if (btnIdx >= numButtons) {
@@ -195,7 +214,7 @@ function backtrackSolve(
         }
     }
 
-    if (currentSum + lowerBound >= bestFound) {
+    if (currSum + lowerBound >= bestFound) {
         return null;
     }
 
@@ -219,14 +238,14 @@ function backtrackSolve(
             remaining,
             buttonOrder,
             btnIdx + 1,
-            currentSum,
+            currSum,
             numPositions,
             numButtons
         );
     }
 
     if (maxPresses === Infinity) maxPresses = 0;
-    maxPresses = Math.min(maxPresses, bestFound - currentSum - 1);
+    maxPresses = Math.min(maxPresses, bestFound - currSum - 1);
 
     let bestResult: number | null = null;
 
@@ -242,7 +261,7 @@ function backtrackSolve(
             remaining,
             buttonOrder,
             btnIdx + 1,
-            currentSum + presses,
+            currSum + presses,
             numPositions,
             numButtons
         );

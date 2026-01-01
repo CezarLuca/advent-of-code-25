@@ -6,13 +6,25 @@ export interface RowResult {
     elapsedMs?: number;
 }
 
+export interface WorkerProgress {
+    workerId: number;
+    rowIndex: number;
+    iterations: number;
+    best: number;
+    currentSum: number;
+    btnIdx: number;
+    numButtons: number;
+    elapsedMs: number;
+}
+
 export interface ProgressCallback {
     (
         rowIndex: number,
         presses: number,
         status: RowResult["status"],
         progress?: string,
-        elapsedMs?: number
+        elapsedMs?: number,
+        workerProgress?: WorkerProgress
     ): void;
 }
 
@@ -62,6 +74,7 @@ export async function solveAsync(
 
     // Create worker pool
     for (let i = 0; i < workerCount; i++) {
+        const workerId = i;
         const worker = new Worker(workerUrl);
         const workerInstance: WorkerInstance = {
             worker,
@@ -75,12 +88,23 @@ export async function solveAsync(
 
             if (e.data.type === "progress") {
                 const elapsed = Date.now() - task.startTime;
+                const workerProgress: WorkerProgress = {
+                    workerId,
+                    rowIndex: task.lineIdx,
+                    iterations: e.data.iterations || 0,
+                    best: e.data.best || Infinity,
+                    currentSum: e.data.currentSum || 0,
+                    btnIdx: e.data.btnIdx || 0,
+                    numButtons: e.data.numButtons || 0,
+                    elapsedMs: elapsed,
+                };
                 onProgress(
                     task.lineIdx,
                     0,
                     "processing",
                     e.data.message,
-                    elapsed
+                    elapsed,
+                    workerProgress
                 );
             } else if (e.data.type === "result") {
                 const elapsed = Date.now() - task.startTime;
@@ -213,12 +237,23 @@ let iterationCount = 0;
 let lastProgressTime = 0;
 let startTime = 0;
 let bestFound = Infinity;
+let currentBtnIdx = 0;
+let currentSum = 0;
+let totalButtons = 0;
 
-function reportProgress(msg) {
+function reportProgress(msg, forceReport = false) {
     const now = Date.now();
-    if (now - lastProgressTime > 250) {
+    if (forceReport || now - lastProgressTime > 5000) {
         const elapsed = ((now - startTime) / 1000).toFixed(1);
-        self.postMessage({ type: "progress", message: msg + " [" + elapsed + "s]" });
+        self.postMessage({ 
+            type: "progress", 
+            message: msg + " [" + elapsed + "s]",
+            iterations: iterationCount,
+            best: bestFound,
+            currentSum: currentSum,
+            btnIdx: currentBtnIdx,
+            numButtons: totalButtons
+        });
         lastProgressTime = now;
     }
 }
@@ -291,8 +326,9 @@ function solveRow(targets, buttons) {
 
     const maxTarget = Math.max(...targets);
     bestFound = maxTarget * numButtons; // Upper bound
+    totalButtons = numButtons;
 
-    reportProgress("Starting search, upper bound: " + bestFound);
+    reportProgress("Starting search, upper bound: " + bestFound, true);
 
     const remaining = Int32Array.from(targets);
     const result = backtrackSolve(matrix, remaining, buttonOrder, 0, 0, numPositions, numButtons);
@@ -300,15 +336,17 @@ function solveRow(targets, buttons) {
     return result === null ? -1 : result;
 }
 
-function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currentSum, numPositions, numButtons) {
+function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currSum, numPositions, numButtons) {
     iterationCount++;
+    currentBtnIdx = btnIdx;
+    currentSum = currSum;
 
     if (iterationCount % 100000 === 0) {
-        reportProgress("Iter: " + (iterationCount/1000000).toFixed(2) + "M, best: " + bestFound + ", sum: " + currentSum + ", btn: " + (btnIdx+1) + "/" + numButtons);
+        reportProgress("Iter: " + (iterationCount/1000000).toFixed(2) + "M, best: " + bestFound + ", sum: " + currSum + ", btn: " + (btnIdx+1) + "/" + numButtons);
     }
 
     // Prune if we already exceed best
-    if (currentSum >= bestFound) {
+    if (currSum >= bestFound) {
         return null;
     }
 
@@ -321,11 +359,11 @@ function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currentSum, numP
 
     // Found a solution
     if (allZero) {
-        if (currentSum < bestFound) {
-            bestFound = currentSum;
-            reportProgress("Found solution: " + currentSum);
+        if (currSum < bestFound) {
+            bestFound = currSum;
+            reportProgress("Found solution: " + currSum, true);
         }
-        return currentSum;
+        return currSum;
     }
 
     // No more buttons to try
@@ -351,7 +389,7 @@ function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currentSum, numP
     }
 
     // Prune if lower bound exceeds best
-    if (currentSum + lowerBound >= bestFound) {
+    if (currSum + lowerBound >= bestFound) {
         return null;
     }
 
@@ -378,7 +416,7 @@ function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currentSum, numP
     if (maxPresses === Infinity) maxPresses = 0;
     
     // Limit by remaining budget
-    maxPresses = Math.min(maxPresses, bestFound - currentSum - 1);
+    maxPresses = Math.min(maxPresses, bestFound - currSum - 1);
 
     let bestResult = null;
 
@@ -393,7 +431,7 @@ function backtrackSolve(matrix, remaining, buttonOrder, btnIdx, currentSum, numP
 
         const result = backtrackSolve(
             matrix, remaining, buttonOrder, btnIdx + 1,
-            currentSum + presses, numPositions, numButtons
+            currSum + presses, numPositions, numButtons
         );
 
         // Restore

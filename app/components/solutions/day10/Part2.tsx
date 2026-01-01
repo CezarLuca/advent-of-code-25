@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { solveAsync, RowResult } from "./solve2";
+import { solveAsync, RowResult, WorkerProgress } from "./solve2";
 
 function formatTime(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
@@ -9,6 +9,78 @@ function formatTime(ms: number): string {
     const mins = Math.floor(ms / 60000);
     const secs = ((ms % 60000) / 1000).toFixed(0);
     return `${mins}m ${secs}s`;
+}
+
+function formatIterations(iterations: number): string {
+    if (iterations >= 1000000) return `${(iterations / 1000000).toFixed(2)}M`;
+    if (iterations >= 1000) return `${(iterations / 1000).toFixed(1)}K`;
+    return `${iterations}`;
+}
+
+function getRowTimeColor(elapsedMs: number | undefined): string {
+    if (elapsedMs === undefined) return "transparent";
+
+    if (elapsedMs <= 60000) {
+        // Light blue - more saturated for faster times
+        const intensity = Math.max(0, 1 - elapsedMs / 60000);
+        const red = Math.round(245 - intensity * 25); // 220-245
+        const green = Math.round(250 - intensity * 15); // 235-250
+        const blue = 255;
+        return `rgb(${red}, ${green}, ${blue})`;
+    } else if (elapsedMs >= 600000) {
+        // Light red/pink - more saturated for longer times
+        const intensity = Math.min(1, (elapsedMs - 600000) / 600000);
+        const red = 255;
+        const green = Math.round(240 - intensity * 20); // 220-240
+        const blue = Math.round(240 - intensity * 20); // 220-240
+        return `rgb(${red}, ${green}, ${blue})`;
+    } else {
+        // Gradient from light blue to white to light pink
+        const progress = (elapsedMs - 60000) / (600000 - 60000);
+        if (progress < 0.5) {
+            const t = progress * 2;
+            const red = Math.round(230 + t * 25);
+            const green = Math.round(240 + t * 15);
+            const blue = 255;
+            return `rgb(${red}, ${green}, ${blue})`;
+        } else {
+            const t = (progress - 0.5) * 2;
+            const red = 255;
+            const green = Math.round(255 - t * 15);
+            const blue = Math.round(255 - t * 15);
+            return `rgb(${red}, ${green}, ${blue})`;
+        }
+    }
+}
+
+function getRowTimeBorderColor(elapsedMs: number | undefined): string {
+    if (elapsedMs === undefined) return "transparent";
+
+    // More saturated colors for the left border indicator
+    if (elapsedMs <= 60000) {
+        const intensity = Math.max(0, 1 - elapsedMs / 60000);
+        const blue = Math.round(150 + intensity * 105);
+        const other = Math.round(180 - intensity * 80);
+        return `rgb(${other}, ${other}, ${blue})`;
+    } else if (elapsedMs >= 600000) {
+        const intensity = Math.min(1, (elapsedMs - 600000) / 600000);
+        const red = Math.round(200 + intensity * 55);
+        const other = Math.round(140 - intensity * 40);
+        return `rgb(${red}, ${other}, ${other})`;
+    } else {
+        const progress = (elapsedMs - 60000) / (600000 - 60000);
+        if (progress < 0.5) {
+            const t = progress * 2;
+            return `rgb(${Math.round(150 + t * 50)}, ${Math.round(
+                150 + t * 30
+            )}, ${Math.round(220 - t * 40)})`;
+        } else {
+            const t = (progress - 0.5) * 2;
+            return `rgb(${Math.round(200 + t * 55)}, ${Math.round(
+                180 - t * 80
+            )}, ${Math.round(180 - t * 80)})`;
+        }
+    }
 }
 
 function getWorkerCount(): number {
@@ -23,14 +95,15 @@ export default function Part2() {
     const [rows, setRows] = useState<RowResult[]>([]);
     const [totalPresses, setTotalPresses] = useState<number | null>(null);
     const [isRunning, setIsRunning] = useState(false);
-    const [currentProgress, setCurrentProgress] = useState<string>("");
     const [totalElapsed, setTotalElapsed] = useState<number>(0);
     const [startTime, setStartTime] = useState<number | null>(null);
+    const [workerProgressMap, setWorkerProgressMap] = useState<
+        Map<number, WorkerProgress>
+    >(new Map());
     const abortRef = useRef<AbortController | null>(null);
 
     const workerCount = getWorkerCount();
 
-    // Update total elapsed time while running
     useEffect(() => {
         if (!isRunning || startTime === null) return;
 
@@ -63,7 +136,7 @@ export default function Part2() {
         );
         setRows(initialRows);
         setTotalPresses(null);
-        setCurrentProgress("");
+        setWorkerProgressMap(new Map());
         setTotalElapsed(0);
         setStartTime(Date.now());
         setIsRunning(true);
@@ -73,26 +146,43 @@ export default function Part2() {
         try {
             const total = await solveAsync(
                 input,
-                (rowIndex, presses, status, progress, elapsedMs) => {
+                (
+                    rowIndex,
+                    presses,
+                    status,
+                    _progress,
+                    elapsedMs,
+                    workerProgress
+                ) => {
                     setRows((prev) => {
                         const next = [...prev];
                         next[rowIndex] = {
                             rowIndex,
                             presses,
                             status,
-                            progress,
                             elapsedMs,
                         };
                         return next;
                     });
-                    if (progress) {
-                        setCurrentProgress(progress);
+                    if (workerProgress) {
+                        setWorkerProgressMap((prev) => {
+                            const next = new Map(prev);
+                            if (status === "done" || status === "error") {
+                                next.delete(workerProgress.workerId);
+                            } else {
+                                next.set(
+                                    workerProgress.workerId,
+                                    workerProgress
+                                );
+                            }
+                            return next;
+                        });
                     }
                 },
                 abortRef.current.signal
             );
             setTotalPresses(total);
-            setCurrentProgress("");
+            setWorkerProgressMap(new Map());
         } catch (e) {
             if ((e as Error).message !== "Aborted") {
                 console.error(e);
@@ -108,6 +198,9 @@ export default function Part2() {
     const totalRowTime = rows
         .filter((r) => r.status === "done" && r.elapsedMs)
         .reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
+    const activeWorkers = Array.from(workerProgressMap.values()).sort(
+        (a, b) => a.workerId - b.workerId
+    );
 
     return (
         <div className="flex flex-col gap-4">
@@ -138,7 +231,7 @@ export default function Part2() {
                         <h3 className="font-bold text-blue-800">
                             📊 Progress: {completedCount}/{rows.length} rows
                             {processingRows.length > 0 &&
-                                ` (${processingRows.length} rows in parallel)`}
+                                ` (${processingRows.length} computing)`}
                         </h3>
                         <div className="text-blue-700 font-mono text-sm flex gap-3">
                             <span>🔧 {workerCount} workers</span>
@@ -160,18 +253,38 @@ export default function Part2() {
                             }}
                         />
                     </div>
-                    {processingRows.length > 0 && (
-                        <div className="text-xs text-blue-600 font-mono mb-1">
-                            Active:{" "}
-                            {processingRows
-                                .map((r) => `Row ${r.rowIndex + 1}`)
-                                .join(", ")}
+
+                    {/* Worker breakdown */}
+                    {activeWorkers.length > 0 && (
+                        <div className="mt-3 border-t border-blue-200 pt-3">
+                            <h4 className="text-xs font-semibold text-blue-700 mb-2">
+                                🔧 Active Workers:
+                            </h4>
+                            <div className="grid gap-1">
+                                {activeWorkers.map((wp) => (
+                                    <div
+                                        key={wp.workerId}
+                                        className="bg-blue-100 rounded px-2 py-1 text-xs font-mono text-blue-800 grid grid-cols-[auto_1fr] gap-x-2"
+                                    >
+                                        <span className="font-semibold">
+                                            W{wp.workerId + 1} → Row{" "}
+                                            {wp.rowIndex + 1}:
+                                        </span>
+                                        <span>
+                                            Iter:{" "}
+                                            {formatIterations(wp.iterations)} |
+                                            Best:{" "}
+                                            {wp.best === Infinity
+                                                ? "∞"
+                                                : wp.best}{" "}
+                                            | Sum: {wp.currentSum} | Btn:{" "}
+                                            {wp.btnIdx + 1}/{wp.numButtons} | ⏱️{" "}
+                                            {formatTime(wp.elapsedMs)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    )}
-                    {currentProgress && (
-                        <p className="text-sm text-blue-600 font-mono animate-pulse">
-                            {currentProgress}
-                        </p>
                     )}
                 </div>
             )}
@@ -181,18 +294,36 @@ export default function Part2() {
                 <div className="bg-green-50 border-2 border-green-200 p-4 rounded-lg">
                     <h3 className="font-bold mb-2 text-green-800">
                         ❄️ Row Results:
+                        <span className="ml-2 text-xs font-normal text-green-600">
+                            (🔵 &lt;1min → ⚪ → 🔴 &gt;10min)
+                        </span>
                     </h3>
                     <div className="max-h-64 overflow-y-auto border-2 border-green-300 rounded-lg bg-white">
-                        <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 gap-y-1 p-3 text-sm">
+                        <div className="flex flex-col text-sm">
                             {rows.map((row) => (
-                                <div key={row.rowIndex} className="contents">
-                                    <span className="text-green-600 font-mono">
+                                <div
+                                    key={row.rowIndex}
+                                    className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 items-center"
+                                    style={{
+                                        backgroundColor:
+                                            row.status === "done"
+                                                ? getRowTimeColor(row.elapsedMs)
+                                                : "transparent",
+                                        borderLeft:
+                                            row.status === "done"
+                                                ? `4px solid ${getRowTimeBorderColor(
+                                                      row.elapsedMs
+                                                  )}`
+                                                : "4px solid transparent",
+                                    }}
+                                >
+                                    <span className="text-green-700 font-mono px-2 py-1 font-medium">
                                         Row {row.rowIndex + 1}:
                                     </span>
                                     <span
-                                        className={`font-mono ${
+                                        className={`font-mono px-2 py-1 ${
                                             row.status === "done"
-                                                ? "text-green-800"
+                                                ? "text-gray-800"
                                                 : row.status === "processing"
                                                 ? "text-blue-600 animate-pulse"
                                                 : row.status === "error"
@@ -208,13 +339,13 @@ export default function Part2() {
                                             ? "no solution"
                                             : "pending"}
                                     </span>
-                                    <span className="text-gray-500 font-mono text-xs">
+                                    <span className="text-gray-600 font-mono text-xs px-2 py-1">
                                         {row.elapsedMs !== undefined &&
                                         row.status !== "pending"
                                             ? formatTime(row.elapsedMs)
                                             : ""}
                                     </span>
-                                    <span>
+                                    <span className="px-2 py-1">
                                         {row.status === "done" && "✅"}
                                         {row.status === "processing" && "⏳"}
                                         {row.status === "error" && "❌"}
