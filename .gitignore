@@ -44,3 +44,5 @@ next-env.d.ts
 app/components/solutions/notable-failures/Day9Part2.ts
 app/components/solutions/notable-failures/solutionPlaceholder.ts
 app/components/solutions/notable-failures/AnimationModalGood.tsx
+app/components/solutions/notable-failures/Day11Part2.ts
+app/components/solutions/notable-failures/Day11Part2-1.ts
