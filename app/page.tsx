@@ -3,6 +3,7 @@
 import Navbar from "./components/Navbar";
 import DaySection from "./components/DaySection";
 import Footer from "./components/Footer";
+import FluidCursorEffect from "./components/ui/FluidCursorEffect";
 import { DayProvider, useDayContext, TOTAL_DAYS } from "./context/DayContext";
 
 function HomeContent() {
@@ -11,6 +12,7 @@ function HomeContent() {
 
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-100 to-blue-50 text-gray-900 dark:from-slate-950 dark:to-green-950 dark:text-gray-50">
+            <FluidCursorEffect config={{ CHRISTMAS_COLORS: true }} />
             <Navbar />
             <main className="mx-auto max-w-4xl space-y-4 px-4 py-8 pt-24">
                 {Array.from({ length: TOTAL_DAYS }, (_, index) => {
