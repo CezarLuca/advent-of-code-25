@@ -1,6 +1,7 @@
 "use client";
 
 import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
 import DaySection from "./components/DaySection";
 import Footer from "./components/Footer";
 import FluidCursorEffect from "./components/ui/FluidCursorEffect";
@@ -15,6 +16,7 @@ function HomeContent() {
             <FluidCursorEffect config={{ CHRISTMAS_COLORS: true }} />
             <Navbar />
             <main className="mx-auto max-w-4xl space-y-4 px-4 py-8 pt-24">
+                <Hero />
                 {Array.from({ length: TOTAL_DAYS }, (_, index) => {
                     const day = index + 1;
                     return (
