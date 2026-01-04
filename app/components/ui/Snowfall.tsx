@@ -12,14 +12,17 @@ interface Snowflake {
 }
 
 function generateSnowflakes(count: number): Snowflake[] {
-    return Array.from({ length: count }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        size: Math.random() * 4 + 2,
-        animationDuration: Math.random() * 10 + 10,
-        delay: Math.random() * 10,
-        opacity: Math.random() * 0.6 + 0.4,
-    }));
+    return Array.from({ length: count }, (_, i) => {
+        const animationDuration = Math.random() * 10 + 10;
+        return {
+            id: i,
+            x: Math.random() * 100,
+            size: Math.random() * 4 + 2,
+            animationDuration,
+            delay: -Math.random() * animationDuration,
+            opacity: Math.random() * 0.6 + 0.4,
+        };
+    });
 }
 
 export default function Snowfall({ count = 50 }: { count?: number }) {
