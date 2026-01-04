@@ -10,6 +10,73 @@
     --night-sky: #0c1222;
 }
 
+/* Christmas Star Cursor */
+* {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='starGold' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23FFD700'/%3E%3Cstop offset='50%25' style='stop-color:%23FFA500'/%3E%3Cstop offset='100%25' style='stop-color:%23FFD700'/%3E%3C/linearGradient%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23glow)'%3E%3Cpath d='M16 2 L18.5 11 L28 11 L20.5 17 L23 26 L16 21 L9 26 L11.5 17 L4 11 L13.5 11 Z' fill='url(%23starGold)' stroke='%23B8860B' stroke-width='0.5'/%3E%3Ccircle cx='16' cy='14' r='2' fill='%23FFFACD' opacity='0.8'/%3E%3C/g%3E%3C/svg%3E")
+            16 16,
+        auto;
+}
+
+/* Pointer cursor for interactive elements */
+a,
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+select,
+.cursor-pointer,
+[onclick],
+label[for] {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='starGoldPointer' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23FFD700'/%3E%3Cstop offset='50%25' style='stop-color:%23FFA500'/%3E%3Cstop offset='100%25' style='stop-color:%23FFD700'/%3E%3C/linearGradient%3E%3Cfilter id='glowPointer'%3E%3CfeGaussianBlur stdDeviation='1.5' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23glowPointer)'%3E%3Cpath d='M16 0 L19 10 L30 10 L21 17 L24 28 L16 22 L8 28 L11 17 L2 10 L13 10 Z' fill='url(%23starGoldPointer)' stroke='%23DAA520' stroke-width='1'/%3E%3Ccircle cx='16' cy='13' r='3' fill='%23FFFACD' opacity='0.9'/%3E%3C/g%3E%3C/svg%3E")
+            16 16,
+        pointer;
+}
+
+/* Text selection cursor */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+textarea,
+[contenteditable="true"] {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cline x1='16' y1='4' x2='16' y2='28' stroke='%23FFD700' stroke-width='2'/%3E%3Cline x1='12' y1='4' x2='20' y2='4' stroke='%23FFD700' stroke-width='2'/%3E%3Cline x1='12' y1='28' x2='20' y2='28' stroke='%23FFD700' stroke-width='2'/%3E%3Ccircle cx='16' cy='4' r='2' fill='%23FFD700'/%3E%3Ccircle cx='16' cy='28' r='2' fill='%23FFD700'/%3E%3C/svg%3E")
+            16 16,
+        text;
+}
+
+/* Disable star cursor when toggled off */
+.no-star-cursor,
+.no-star-cursor * {
+    cursor: auto !important;
+}
+
+.no-star-cursor a,
+.no-star-cursor button,
+.no-star-cursor [role="button"],
+.no-star-cursor input[type="submit"],
+.no-star-cursor input[type="button"],
+.no-star-cursor select,
+.no-star-cursor .cursor-pointer,
+.no-star-cursor [onclick],
+.no-star-cursor label[for] {
+    cursor: pointer !important;
+}
+
+.no-star-cursor input[type="text"],
+.no-star-cursor input[type="email"],
+.no-star-cursor input[type="password"],
+.no-star-cursor input[type="search"],
+.no-star-cursor input[type="tel"],
+.no-star-cursor input[type="url"],
+.no-star-cursor input[type="number"],
+.no-star-cursor textarea,
+.no-star-cursor [contenteditable="true"] {
+    cursor: text !important;
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
