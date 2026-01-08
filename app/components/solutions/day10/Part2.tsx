@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { solveAsync, RowResult, WorkerProgress } from "./solve2";
+import {
+    solveAsync,
+    RowResult,
+    WorkerProgress,
+    requestSkipRow,
+} from "./solve2";
 
 function formatTime(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
@@ -21,21 +26,18 @@ function getRowTimeColor(elapsedMs: number | undefined): string {
     if (elapsedMs === undefined) return "transparent";
 
     if (elapsedMs <= 60000) {
-        // Light blue - more saturated for faster times
         const intensity = Math.max(0, 1 - elapsedMs / 60000);
-        const red = Math.round(245 - intensity * 25); // 220-245
-        const green = Math.round(250 - intensity * 15); // 235-250
+        const red = Math.round(245 - intensity * 25);
+        const green = Math.round(250 - intensity * 15);
         const blue = 255;
         return `rgb(${red}, ${green}, ${blue})`;
     } else if (elapsedMs >= 600000) {
-        // Light red/pink - more saturated for longer times
         const intensity = Math.min(1, (elapsedMs - 600000) / 600000);
         const red = 255;
-        const green = Math.round(240 - intensity * 20); // 220-240
-        const blue = Math.round(240 - intensity * 20); // 220-240
+        const green = Math.round(240 - intensity * 20);
+        const blue = Math.round(240 - intensity * 20);
         return `rgb(${red}, ${green}, ${blue})`;
     } else {
-        // Gradient from light blue to white to light pink
         const progress = (elapsedMs - 60000) / (600000 - 60000);
         if (progress < 0.5) {
             const t = progress * 2;
@@ -56,7 +58,6 @@ function getRowTimeColor(elapsedMs: number | undefined): string {
 function getRowTimeBorderColor(elapsedMs: number | undefined): string {
     if (elapsedMs === undefined) return "transparent";
 
-    // More saturated colors for the left border indicator
     if (elapsedMs <= 60000) {
         const intensity = Math.max(0, 1 - elapsedMs / 60000);
         const blue = Math.round(150 + intensity * 105);
@@ -90,6 +91,8 @@ function getWorkerCount(): number {
     return 4;
 }
 
+const AUTO_SKIP_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
 export default function Part2() {
     const [input, setInput] = useState("");
     const [rows, setRows] = useState<RowResult[]>([]);
@@ -100,6 +103,8 @@ export default function Part2() {
     const [workerProgressMap, setWorkerProgressMap] = useState<
         Map<number, WorkerProgress>
     >(new Map());
+    const [showWarning, setShowWarning] = useState(true);
+    const [skippedRows, setSkippedRows] = useState<Set<number>>(new Set());
     const abortRef = useRef<AbortController | null>(null);
 
     const workerCount = getWorkerCount();
@@ -113,6 +118,15 @@ export default function Part2() {
 
         return () => clearInterval(interval);
     }, [isRunning, startTime]);
+
+    const handleSkipRow = useCallback((rowIndex: number, bestValue: number) => {
+        if (bestValue === Infinity || bestValue <= 0) {
+            // Can't skip without a valid best value
+            return;
+        }
+        requestSkipRow(rowIndex, bestValue);
+        setSkippedRows((prev) => new Set(prev).add(rowIndex));
+    }, []);
 
     const handleSolve = useCallback(async () => {
         if (isRunning) {
@@ -140,6 +154,7 @@ export default function Part2() {
         setTotalElapsed(0);
         setStartTime(Date.now());
         setIsRunning(true);
+        setSkippedRows(new Set());
 
         abortRef.current = new AbortController();
 
@@ -167,7 +182,11 @@ export default function Part2() {
                     if (workerProgress) {
                         setWorkerProgressMap((prev) => {
                             const next = new Map(prev);
-                            if (status === "done" || status === "error") {
+                            if (
+                                status === "done" ||
+                                status === "error" ||
+                                status === "skipped"
+                            ) {
                                 next.delete(workerProgress.workerId);
                             } else {
                                 next.set(
@@ -179,7 +198,8 @@ export default function Part2() {
                         });
                     }
                 },
-                abortRef.current.signal
+                abortRef.current.signal,
+                AUTO_SKIP_TIMEOUT_MS
             );
             setTotalPresses(total);
             setWorkerProgressMap(new Map());
@@ -193,10 +213,16 @@ export default function Part2() {
         }
     }, [input, isRunning]);
 
-    const completedCount = rows.filter((r) => r.status === "done").length;
+    const completedCount = rows.filter(
+        (r) => r.status === "done" || r.status === "skipped"
+    ).length;
     const processingRows = rows.filter((r) => r.status === "processing");
+    const skippedCount = rows.filter((r) => r.status === "skipped").length;
     const totalRowTime = rows
-        .filter((r) => r.status === "done" && r.elapsedMs)
+        .filter(
+            (r) =>
+                (r.status === "done" || r.status === "skipped") && r.elapsedMs
+        )
         .reduce((sum, r) => sum + (r.elapsedMs || 0), 0);
     const activeWorkers = Array.from(workerProgressMap.values()).sort(
         (a, b) => a.workerId - b.workerId
@@ -204,6 +230,58 @@ export default function Part2() {
 
     return (
         <div className="flex flex-col gap-4">
+            {/* Warning Banner */}
+            {showWarning && (
+                <div className="bg-amber-50 border-2 border-amber-400 p-4 rounded-lg">
+                    <div className="flex justify-between items-start">
+                        <div className="flex gap-3">
+                            <span className="text-2xl">⚠️</span>
+                            <div>
+                                <h3 className="font-bold text-amber-800 mb-1">
+                                    Computationally Intensive Solution
+                                </h3>
+                                <ul className="text-sm text-amber-700 space-y-1">
+                                    <li>
+                                        • This solution uses{" "}
+                                        <strong>
+                                            up to {workerCount} parallel workers
+                                        </strong>{" "}
+                                        and may consume significant CPU
+                                        resources
+                                    </li>
+                                    <li>
+                                        • Larger datasets can take{" "}
+                                        <strong>several hours</strong> to fully
+                                        process
+                                    </li>
+                                    <li>
+                                        • Rows taking longer than{" "}
+                                        <strong>30 minutes</strong> will be
+                                        auto-skipped with the best found value
+                                    </li>
+                                    <li>
+                                        • You can manually skip any row by
+                                        clicking &quot;Use Best&quot; on active
+                                        workers
+                                    </li>
+                                    <li>
+                                        • Skipped rows use approximations and
+                                        may not give the optimal answer
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowWarning(false)}
+                            className="text-amber-600 hover:text-amber-800 p-1"
+                            title="Dismiss warning"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="flex gap-2">
                 <textarea
                     value={input}
@@ -232,6 +310,11 @@ export default function Part2() {
                             📊 Progress: {completedCount}/{rows.length} rows
                             {processingRows.length > 0 &&
                                 ` (${processingRows.length} computing)`}
+                            {skippedCount > 0 && (
+                                <span className="text-amber-600 ml-2">
+                                    ({skippedCount} skipped)
+                                </span>
+                            )}
                         </h3>
                         <div className="text-blue-700 font-mono text-sm flex gap-3">
                             <span>🔧 {workerCount} workers</span>
@@ -260,29 +343,106 @@ export default function Part2() {
                             <h4 className="text-xs font-semibold text-blue-700 mb-2">
                                 🔧 Active Workers:
                             </h4>
-                            <div className="grid gap-1">
-                                {activeWorkers.map((wp) => (
-                                    <div
-                                        key={wp.workerId}
-                                        className="bg-blue-100 rounded px-2 py-1 text-xs font-mono text-blue-800 grid grid-cols-[auto_1fr] gap-x-2"
-                                    >
-                                        <span className="font-semibold">
-                                            W{wp.workerId + 1} → Row{" "}
-                                            {wp.rowIndex + 1}:
-                                        </span>
-                                        <span>
-                                            Iter:{" "}
-                                            {formatIterations(wp.iterations)} |
-                                            Best:{" "}
-                                            {wp.best === Infinity
-                                                ? "∞"
-                                                : wp.best}{" "}
-                                            | Sum: {wp.currentSum} | Btn:{" "}
-                                            {wp.btnIdx + 1}/{wp.numButtons} | ⏱️{" "}
-                                            {formatTime(wp.elapsedMs)}
-                                        </span>
-                                    </div>
-                                ))}
+                            <div className="grid gap-2">
+                                {activeWorkers.map((wp) => {
+                                    const canSkip =
+                                        wp.best !== Infinity && wp.best > 0;
+                                    const isNearTimeout =
+                                        wp.elapsedMs >
+                                        AUTO_SKIP_TIMEOUT_MS * 0.8;
+                                    const timeRemaining =
+                                        AUTO_SKIP_TIMEOUT_MS - wp.elapsedMs;
+
+                                    return (
+                                        <div
+                                            key={wp.workerId}
+                                            className={`rounded px-3 py-2 text-xs font-mono ${
+                                                isNearTimeout
+                                                    ? "bg-amber-100 border border-amber-300"
+                                                    : "bg-blue-100"
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div className="text-blue-800">
+                                                    <span className="font-semibold">
+                                                        W{wp.workerId + 1} → Row{" "}
+                                                        {wp.rowIndex + 1}:
+                                                    </span>
+                                                    <span className="ml-2">
+                                                        Iter:{" "}
+                                                        {formatIterations(
+                                                            wp.iterations
+                                                        )}{" "}
+                                                        | Best:{" "}
+                                                        <span
+                                                            className={
+                                                                canSkip
+                                                                    ? "text-green-700 font-bold"
+                                                                    : ""
+                                                            }
+                                                        >
+                                                            {wp.best ===
+                                                            Infinity
+                                                                ? "∞"
+                                                                : wp.best}
+                                                        </span>{" "}
+                                                        | Btn: {wp.btnIdx + 1}/
+                                                        {wp.numButtons} | ⏱️{" "}
+                                                        {formatTime(
+                                                            wp.elapsedMs
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() =>
+                                                        handleSkipRow(
+                                                            wp.rowIndex,
+                                                            wp.best
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        !canSkip ||
+                                                        skippedRows.has(
+                                                            wp.rowIndex
+                                                        )
+                                                    }
+                                                    className={`ml-3 px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                                        canSkip &&
+                                                        !skippedRows.has(
+                                                            wp.rowIndex
+                                                        )
+                                                            ? "bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
+                                                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                                    }`}
+                                                    title={
+                                                        !canSkip
+                                                            ? "No valid solution found yet"
+                                                            : skippedRows.has(
+                                                                  wp.rowIndex
+                                                              )
+                                                            ? "Skip already requested"
+                                                            : `Use ${wp.best} as the result for this row`
+                                                    }
+                                                >
+                                                    {skippedRows.has(
+                                                        wp.rowIndex
+                                                    )
+                                                        ? "Skipping..."
+                                                        : "Use Best"}
+                                                </button>
+                                            </div>
+                                            {isNearTimeout &&
+                                                timeRemaining > 0 && (
+                                                    <div className="mt-1 text-amber-700 text-xs">
+                                                        ⏰ Auto-skip in{" "}
+                                                        {formatTime(
+                                                            timeRemaining
+                                                        )}
+                                                    </div>
+                                                )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -308,12 +468,16 @@ export default function Part2() {
                                         backgroundColor:
                                             row.status === "done"
                                                 ? getRowTimeColor(row.elapsedMs)
+                                                : row.status === "skipped"
+                                                ? "rgb(254, 243, 199)" // amber-100
                                                 : "transparent",
                                         borderLeft:
                                             row.status === "done"
                                                 ? `4px solid ${getRowTimeBorderColor(
                                                       row.elapsedMs
                                                   )}`
+                                                : row.status === "skipped"
+                                                ? "4px solid rgb(245, 158, 11)" // amber-500
                                                 : "4px solid transparent",
                                     }}
                                 >
@@ -324,6 +488,8 @@ export default function Part2() {
                                         className={`font-mono px-2 py-1 ${
                                             row.status === "done"
                                                 ? "text-gray-800"
+                                                : row.status === "skipped"
+                                                ? "text-amber-700"
                                                 : row.status === "processing"
                                                 ? "text-blue-600 animate-pulse"
                                                 : row.status === "error"
@@ -333,6 +499,8 @@ export default function Part2() {
                                     >
                                         {row.status === "done"
                                             ? `${row.presses} presses`
+                                            : row.status === "skipped"
+                                            ? `${row.presses} presses (skipped)`
                                             : row.status === "processing"
                                             ? "computing..."
                                             : row.status === "error"
@@ -347,6 +515,7 @@ export default function Part2() {
                                     </span>
                                     <span className="px-2 py-1">
                                         {row.status === "done" && "✅"}
+                                        {row.status === "skipped" && "⏭️"}
                                         {row.status === "processing" && "⏳"}
                                         {row.status === "error" && "❌"}
                                         {row.status === "pending" && "⏸️"}
@@ -372,6 +541,12 @@ export default function Part2() {
                                 ? "Computing..."
                                 : "—"}
                         </p>
+                        {totalPresses !== null && skippedCount > 0 && (
+                            <p className="text-xs text-amber-600 mt-1">
+                                ⚠️ {skippedCount} row(s) were skipped - result
+                                may not be optimal
+                            </p>
+                        )}
                     </div>
                     {totalPresses !== null && (
                         <div className="text-yellow-700 font-mono text-sm">

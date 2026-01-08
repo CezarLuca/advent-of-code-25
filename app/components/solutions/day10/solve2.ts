@@ -1,7 +1,7 @@
 export interface RowResult {
     rowIndex: number;
     presses: number;
-    status: "pending" | "processing" | "done" | "error";
+    status: "pending" | "processing" | "done" | "error" | "skipped";
     progress?: string;
     elapsedMs?: number;
 }
@@ -49,12 +49,25 @@ interface WorkerInstance {
     worker: Worker;
     busy: boolean;
     currentTask: WorkerTask | null;
+    workerId: number;
+}
+
+// Store for skip requests - maps rowIndex to the best value to use
+const skipRequests = new Map<number, number>();
+
+export function requestSkipRow(rowIndex: number, bestValue: number): void {
+    skipRequests.set(rowIndex, bestValue);
+}
+
+export function clearSkipRequests(): void {
+    skipRequests.clear();
 }
 
 export async function solveAsync(
     input: string,
     onProgress: ProgressCallback,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    autoSkipTimeoutMs: number = 30 * 60 * 1000 // 30 minutes default
 ): Promise<number> {
     const lines = input
         .trim()
@@ -62,6 +75,8 @@ export async function solveAsync(
         .filter((line) => line.trim());
 
     if (lines.length === 0) return 0;
+
+    clearSkipRequests();
 
     const workerCode = getWorkerCode();
     const blob = new Blob([workerCode], { type: "application/javascript" });
@@ -72,6 +87,12 @@ export async function solveAsync(
     const taskQueue: WorkerTask[] = [];
     const results: Map<number, number> = new Map();
 
+    // Track current best values for each row being processed
+    const currentBestValues: Map<number, number> = new Map();
+
+    // Interval to check for skip requests and timeouts
+    const checkInterval: ReturnType<typeof setInterval> | null = null;
+
     // Create worker pool
     for (let i = 0; i < workerCount; i++) {
         const workerId = i;
@@ -80,6 +101,7 @@ export async function solveAsync(
             worker,
             busy: false,
             currentTask: null,
+            workerId,
         };
 
         worker.onmessage = (e) => {
@@ -88,11 +110,18 @@ export async function solveAsync(
 
             if (e.data.type === "progress") {
                 const elapsed = Date.now() - task.startTime;
+                const best = e.data.best || Infinity;
+
+                // Update current best value for this row
+                if (best !== Infinity) {
+                    currentBestValues.set(task.lineIdx, best);
+                }
+
                 const workerProgress: WorkerProgress = {
                     workerId,
                     rowIndex: task.lineIdx,
                     iterations: e.data.iterations || 0,
-                    best: e.data.best || Infinity,
+                    best: best,
                     currentSum: e.data.currentSum || 0,
                     btnIdx: e.data.btnIdx || 0,
                     numButtons: e.data.numButtons || 0,
@@ -106,8 +135,63 @@ export async function solveAsync(
                     elapsed,
                     workerProgress
                 );
+
+                // Check for skip request
+                if (skipRequests.has(task.lineIdx)) {
+                    const skipValue = skipRequests.get(task.lineIdx)!;
+                    skipRequests.delete(task.lineIdx);
+                    currentBestValues.delete(task.lineIdx);
+
+                    workerInstance.busy = false;
+                    workerInstance.currentTask = null;
+
+                    onProgress(
+                        task.lineIdx,
+                        skipValue,
+                        "skipped",
+                        "Skipped by user",
+                        elapsed
+                    );
+                    task.resolve(skipValue);
+
+                    // Terminate and recreate worker to stop computation
+                    worker.terminate();
+                    const newWorker = new Worker(workerUrl);
+                    workerInstance.worker = newWorker;
+                    setupWorkerHandlers(newWorker, workerInstance, workerId);
+
+                    processNextTask(workerInstance);
+                    return;
+                }
+
+                // Check for auto-skip timeout
+                if (elapsed >= autoSkipTimeoutMs && best !== Infinity) {
+                    currentBestValues.delete(task.lineIdx);
+
+                    workerInstance.busy = false;
+                    workerInstance.currentTask = null;
+
+                    onProgress(
+                        task.lineIdx,
+                        best,
+                        "skipped",
+                        "Auto-skipped (timeout)",
+                        elapsed
+                    );
+                    task.resolve(best);
+
+                    // Terminate and recreate worker
+                    worker.terminate();
+                    const newWorker = new Worker(workerUrl);
+                    workerInstance.worker = newWorker;
+                    setupWorkerHandlers(newWorker, workerInstance, workerId);
+
+                    processNextTask(workerInstance);
+                    return;
+                }
             } else if (e.data.type === "result") {
                 const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
                 workerInstance.busy = false;
                 workerInstance.currentTask = null;
 
@@ -128,6 +212,7 @@ export async function solveAsync(
                 processNextTask(workerInstance);
             } else if (e.data.type === "error") {
                 const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
                 workerInstance.busy = false;
                 workerInstance.currentTask = null;
                 onProgress(task.lineIdx, 0, "error", undefined, elapsed);
@@ -141,6 +226,7 @@ export async function solveAsync(
             const task = workerInstance.currentTask;
             if (task) {
                 const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
                 workerInstance.busy = false;
                 workerInstance.currentTask = null;
                 onProgress(task.lineIdx, 0, "error", undefined, elapsed);
@@ -149,6 +235,134 @@ export async function solveAsync(
         };
 
         workers.push(workerInstance);
+    }
+
+    function setupWorkerHandlers(
+        newWorker: Worker,
+        instance: WorkerInstance,
+        wId: number
+    ) {
+        newWorker.onmessage = (e) => {
+            const task = instance.currentTask;
+            if (!task) return;
+
+            if (e.data.type === "progress") {
+                const elapsed = Date.now() - task.startTime;
+                const best = e.data.best || Infinity;
+
+                if (best !== Infinity) {
+                    currentBestValues.set(task.lineIdx, best);
+                }
+
+                const workerProgress: WorkerProgress = {
+                    workerId: wId,
+                    rowIndex: task.lineIdx,
+                    iterations: e.data.iterations || 0,
+                    best: best,
+                    currentSum: e.data.currentSum || 0,
+                    btnIdx: e.data.btnIdx || 0,
+                    numButtons: e.data.numButtons || 0,
+                    elapsedMs: elapsed,
+                };
+                onProgress(
+                    task.lineIdx,
+                    0,
+                    "processing",
+                    e.data.message,
+                    elapsed,
+                    workerProgress
+                );
+
+                if (skipRequests.has(task.lineIdx)) {
+                    const skipValue = skipRequests.get(task.lineIdx)!;
+                    skipRequests.delete(task.lineIdx);
+                    currentBestValues.delete(task.lineIdx);
+
+                    instance.busy = false;
+                    instance.currentTask = null;
+
+                    onProgress(
+                        task.lineIdx,
+                        skipValue,
+                        "skipped",
+                        "Skipped by user",
+                        elapsed
+                    );
+                    task.resolve(skipValue);
+
+                    newWorker.terminate();
+                    const recreatedWorker = new Worker(workerUrl);
+                    instance.worker = recreatedWorker;
+                    setupWorkerHandlers(recreatedWorker, instance, wId);
+
+                    processNextTask(instance);
+                    return;
+                }
+
+                if (elapsed >= autoSkipTimeoutMs && best !== Infinity) {
+                    currentBestValues.delete(task.lineIdx);
+
+                    instance.busy = false;
+                    instance.currentTask = null;
+
+                    onProgress(
+                        task.lineIdx,
+                        best,
+                        "skipped",
+                        "Auto-skipped (timeout)",
+                        elapsed
+                    );
+                    task.resolve(best);
+
+                    newWorker.terminate();
+                    const recreatedWorker = new Worker(workerUrl);
+                    instance.worker = recreatedWorker;
+                    setupWorkerHandlers(recreatedWorker, instance, wId);
+
+                    processNextTask(instance);
+                    return;
+                }
+            } else if (e.data.type === "result") {
+                const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
+                instance.busy = false;
+                instance.currentTask = null;
+
+                if (e.data.presses === -1) {
+                    onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                } else {
+                    onProgress(
+                        task.lineIdx,
+                        e.data.presses,
+                        "done",
+                        undefined,
+                        elapsed
+                    );
+                }
+                task.resolve(e.data.presses);
+                processNextTask(instance);
+            } else if (e.data.type === "error") {
+                const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
+                instance.busy = false;
+                instance.currentTask = null;
+                onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                task.resolve(-1);
+                processNextTask(instance);
+            }
+        };
+
+        newWorker.onerror = () => {
+            const task = instance.currentTask;
+            if (task) {
+                const elapsed = Date.now() - task.startTime;
+                currentBestValues.delete(task.lineIdx);
+                instance.busy = false;
+                instance.currentTask = null;
+                onProgress(task.lineIdx, 0, "error", undefined, elapsed);
+                task.reject(new Error("Worker error"));
+            }
+        };
     }
 
     const processNextTask = (workerInstance: WorkerInstance) => {
@@ -189,6 +403,7 @@ export async function solveAsync(
             () => {
                 // Clear queue and terminate workers
                 taskQueue.length = 0;
+                if (checkInterval) clearInterval(checkInterval);
                 workers.forEach((w) => {
                     if (w.currentTask) {
                         w.currentTask.reject(new Error("Aborted"));
@@ -210,12 +425,14 @@ export async function solveAsync(
         await Promise.all(rowPromises);
     } catch (e) {
         // Cleanup on error
+        if (checkInterval) clearInterval(checkInterval);
         workers.forEach((w) => w.worker.terminate());
         URL.revokeObjectURL(workerUrl);
         throw e;
     }
 
     // Cleanup
+    if (checkInterval) clearInterval(checkInterval);
     workers.forEach((w) => w.worker.terminate());
     URL.revokeObjectURL(workerUrl);
 
@@ -243,7 +460,7 @@ let totalButtons = 0;
 
 function reportProgress(msg, forceReport = false) {
     const now = Date.now();
-    if (forceReport || now - lastProgressTime > 5000) {
+    if (forceReport || now - lastProgressTime > 2000) {
         const elapsed = ((now - startTime) / 1000).toFixed(1);
         self.postMessage({ 
             type: "progress", 
